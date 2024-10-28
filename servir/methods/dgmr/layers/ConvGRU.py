@@ -76,11 +76,7 @@ class ConvGRUCell(torch.nn.Module):
 
 
 class ConvGRU(torch.nn.Module):
-    """ConvGRU Cell wrapper to replace tf.static_rnn in TF implementation
-    Input: (mxnxd)
-    
-    Output: ()
-    """
+    """ConvGRU Cell wrapper to replace tf.static_rnn in TF implementation"""
 
     def __init__(
         self,

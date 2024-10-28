@@ -64,13 +64,21 @@ def parse_parameters():
                                     'config_path': 'configs/wa_imerg/ConvLSTM.py', 
                                     'model_save_path': 'temp/imerg_only_mse_params.pth', 
                                     'input_h5_fname': 'temp/input_imerg.h5', 
-                                    'output_h5_fname':'temp/output_convlstm.h5', 
+                                    'output_h5_fname':'temp/output_convlstm.h5',
                                     'use_gpu': False
-                           }}
+                           },
+                           'dgmr': {'model_type': 'dgmr',
+                                    'config_path': 'configs/wa_imerg/DGMR.py', 
+                                    'model_save_path': 'temp/dgmr-None.ckpt', 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_dgmr.h5',
+                                    'use_gpu': False
+                           }
+                        }
     
     parser=argparse.ArgumentParser()
     
-    model_name = 'convlstm'
+    model_name = 'dgmr'
     print(param_dict_of_dicts[model_name])
     parser.add_argument("--model_type", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default=param_dict_of_dicts[model_name]['model_type'])
     parser.add_argument("--config_path", help="Path for config files for model", default=param_dict_of_dicts[model_name]['config_path'])
@@ -95,5 +103,6 @@ def parse_parameters():
     # output_h5_fname = '/home/cc/projects/nowcasting/temp/output_imerg.h5'
     
 if __name__ == "__main__":
+            
     param_dict = parse_parameters()
     nowcast(param_dict=param_dict)

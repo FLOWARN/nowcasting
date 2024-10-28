@@ -1,7 +1,7 @@
 method = 'LINDA'
 
-n_ens_members =  20
-n_cascade_levels = 6
+max_num_features = 15
+add_perturbations = False
 
 in_seq_length = 12
 out_seq_length = 12

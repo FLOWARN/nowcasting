@@ -267,12 +267,18 @@ def loss_hinge_disc(score_generated, score_real):
     loss += torch.mean(l2)
     return loss
 
-
+def loss_accuracy(score_generated, score_real):
+    """ Accuracy value for particular classes"""
+    labels_generated = torch.argmax(score_generated)
+    labels_real = torch.argmax(score_real)
+    acc = (torch.sum(torch.where(labels_generated == 0)[0]) + torch.sum(torch.where(labels_real == 0)[0]))/(score_generated.size + score_real.size)
+    
+    
+    
 def loss_hinge_gen(score_generated):
     """Generator hinge loss."""
     loss = -torch.mean(score_generated)
     return loss
-
 
 def threshold_quantile_loss(gt, pred, threshold, quantile):
     # if ground truth gt below threshold, loss is predicted value 

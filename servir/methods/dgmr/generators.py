@@ -196,9 +196,9 @@ class Generator(torch.nn.Module, PyTorchModelHubMixin):
         self.conditioning_stack = conditioning_stack
         self.latent_stack = latent_stack
         self.sampler = sampler
-    
+
     def forward(self, x):
         conditioning_states = self.conditioning_stack(x)
         latent_dim = self.latent_stack(x)
-        x = torch.relu(self.sampler(conditioning_states, latent_dim))
+        x = self.sampler(conditioning_states, latent_dim)
         return x

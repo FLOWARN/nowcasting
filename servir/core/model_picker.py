@@ -66,27 +66,39 @@ class ModelPicker:
             # ir_filename = None,
             # batch_size = self.config['batch_size'],
             # )
-            
-            
-            input_channels = self.config['input_channels']
-            output_shape = self.config['output_shape']
-            model = DGMR(
-                forecast_steps=self.config['out_seq_length'],
-                input_channels=input_channels,
-                output_shape=output_shape,
-                latent_channels=self.config['latent_channels'], 
-                context_channels=self.config['context_channels'], 
-                num_samples=5,
-                visualize=False
-            )
+        
+            # input_channels = self.config['input_channels']
+            # output_shape = self.config['img_shape']
+            # model = DGMR(
+            #     forecast_steps=self.config['out_seq_length'],
+            #     input_channels=input_channels,
+            #     output_shape=output_shape,
+            #     latent_channels=self.config['latent_channels'], 
+            #     context_channels=self.config['context_channels'], 
+            #     num_samples=5,
+            #     visualize=False
+            # )
+            model = DGMR.load_from_checkpoint(self.model_save_location, map_location=device)
             
             self.input_precip = self.input_precip.astype(np.float32)
+            img_height = self.config['img_shape'][0]
+            img_width = self.config['img_shape'][1]
+            
+            if img_height != self.input_precip.shape[1]:
+                h_start = (self.input_precip.shape[1] - img_height) // 2
+                self.input_precip = self.input_precip[:, h_start:h_start+img_height, :]
+            
+            if img_width != self.input_precip.shape[2]:
+                w_start = (self.input_precip.shape[2] - img_width) // 2
+                self.input_precip = self.input_precip[:, :, w_start:w_start+img_width]
+
+
             self.input_precip = self.input_precip[-self.config['in_seq_length']:, :, :]
             # self.input_precip = np.transpose(self.input_precip, (2, 0, 1))
-            self.input_precip = self.input_precip[:,None,:,:]
+            self.input_precip = torch.tensor(self.input_precip[:,None,:,:])
             
-            print(self.input_precip.shape)
-            input()
+            self.prediction_function = model
+            
             
     
     def load_data(self, input_h5_filename):
@@ -116,6 +128,11 @@ class ModelPicker:
             # convert to orignal sacles
             pred_Y = pred_Y * self.max_rainfall_intensity
             return pred_Y
+        elif self.model_type in ['dgmr']:
+            print(self.input_precip.shape)
+            pred_out_images = self.prediction_function(self.input_precip)
+            print(pred_out_images.shape)
+            input()
 
     
     def save_output(self, output_h5_filename, output_precipitation):

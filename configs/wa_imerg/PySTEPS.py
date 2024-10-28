@@ -1,7 +1,7 @@
 method = 'PySTEPS'
 
-max_num_features = 15
-add_perturbations = False
+n_ens_members =  20
+n_cascade_levels = 6
 
 in_seq_length = 12
 out_seq_length = 12

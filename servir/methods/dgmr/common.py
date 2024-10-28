@@ -13,9 +13,7 @@ from servir.methods.dgmr.layers.utils import get_conv_layer
 
 
 class GBlock(torch.nn.Module):
-    """Residual generator block without upsampling
-
-    """
+    """Residual generator block without upsampling"""
 
     def __init__(
         self,
@@ -176,9 +174,9 @@ class DBlock(torch.nn.Module):
         conv2d = get_conv_layer(conv_type)
         if conv_type == "3d":
             # 3D Average pooling
-            self.pooling = torch.nn.AvgPool3d(kernel_size=1, stride=2)
+            self.pooling = torch.nn.AvgPool3d(kernel_size=2, stride=2)
         else:
-            self.pooling = torch.nn.AvgPool2d(kernel_size=1, stride=2)
+            self.pooling = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.conv_1x1 = spectral_norm(
             conv2d(
                 in_channels=input_channels,
@@ -291,7 +289,7 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
         self,
         input_channels: int = 1,
         output_channels: int = 768,
-        num_context_steps: int = 8,
+        num_context_steps: int = 4,
         conv_type: str = "standard",
         **kwargs
     ):
@@ -377,7 +375,7 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
         self.relu = torch.nn.ReLU()
 
     def forward(
-        self, x: torch.Tensor,
+        self, x: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Each timestep processed separately
         x = self.space2depth(x)
@@ -395,7 +393,6 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
             scale_2.append(s2)
             scale_3.append(s3)
             scale_4.append(s4)
-        
         scale_1 = torch.stack(scale_1, dim=1)  # B, T, C, H, W and want along C dimension
         scale_2 = torch.stack(scale_2, dim=1)  # B, T, C, H, W and want along C dimension
         scale_3 = torch.stack(scale_3, dim=1)  # B, T, C, H, W and want along C dimension
@@ -471,7 +468,7 @@ class LatentConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
 
         """
 
-        # Independent draws from Normal distribution
+        # Independent draws from Norma ldistribution
         z = self.distribution.sample(self.shape)
         # Batch is at end for some reason, reshape
         z = torch.permute(z, (3, 0, 1, 2)).type_as(x)
