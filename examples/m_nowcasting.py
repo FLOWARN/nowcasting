@@ -27,24 +27,62 @@ def nowcast(param_dict):
     
     model_picker.save_output(output_h5_fname, predictions)
 
-    
+
 
 def parse_parameters():
     import argparse
+    
+    param_dict_of_dicts = {'naive':{'model_type': 'naive',
+                                    'config_path': 'configs/wa_imerg/naive_persistence.py', 
+                                    'model_save_path': None, 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_naive_persistence.h5', 
+                                    'use_gpu': False
+                                    },
+                           'lagrangian': {'model_type': 'lagrangian',
+                                    'config_path': 'configs/wa_imerg/lagrangian_persistence.py', 
+                                    'model_save_path': None, 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_lagrangian_persistence.h5', 
+                                    'use_gpu': False
+                           },
+                           'linda': {'model_type': 'linda',
+                                    'config_path': 'configs/wa_imerg/LINDA.py', 
+                                    'model_save_path': None, 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_linda.h5', 
+                                    'use_gpu': False
+                           },
+                           'steps': {'model_type': 'steps',
+                                    'config_path': 'configs/wa_imerg/PySTEPS.py', 
+                                    'model_save_path': None, 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_steps.h5', 
+                                    'use_gpu': False
+                           },
+                           'convlstm': {'model_type': 'convlstm',
+                                    'config_path': 'configs/wa_imerg/ConvLSTM.py', 
+                                    'model_save_path': 'temp/imerg_only_mse_params.pth', 
+                                    'input_h5_fname': 'temp/input_imerg.h5', 
+                                    'output_h5_fname':'temp/output_convlstm.h5', 
+                                    'use_gpu': False
+                           }}
+    
     parser=argparse.ArgumentParser()
     
-    parser.add_argument("--model_type", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default='dgmr')
-    # parser.add_argument("--servir_path", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default='/Users/akshayaravamudan/Desktop/SERVIR/nowcasting/')
-    parser.add_argument("--config_path", help="Path for config files for model", default='../configs/gh_imerg/DGMR.py')
-    parser.add_argument("--model_save_path", help="Model save path (relevant if the underlying model requires a saved object)", default='temp/DGMRBestUnnormalized.pth')
-    parser.add_argument("--use_gpu", help="Whether or not to use GPU", default=False, action="store_true")
-    parser.add_argument("--input_h5_fname", help="file name to (optionally create) use for the input image time series", default='temp/input_imerg.h5')
-    parser.add_argument("--output_h5_fname", help="file name to save outputs to", default='temp/output_imerg_dgmr.h5')
+    model_name = 'convlstm'
+    print(param_dict_of_dicts[model_name])
+    parser.add_argument("--model_type", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default=param_dict_of_dicts[model_name]['model_type'])
+    parser.add_argument("--config_path", help="Path for config files for model", default=param_dict_of_dicts[model_name]['config_path'])
+    parser.add_argument("--model_save_path", help="Model save path (relevant if the underlying model requires a saved object)", default=param_dict_of_dicts[model_name]['model_save_path'])
+    parser.add_argument("--use_gpu", help="Whether or not to use GPU", default=param_dict_of_dicts[model_name]['use_gpu'], action="store_true")
+    parser.add_argument("--input_h5_fname", help="file name to (optionally create) use for the input image time series", default=param_dict_of_dicts[model_name]['input_h5_fname'])
+    parser.add_argument("--output_h5_fname", help="file name to save outputs to", default=param_dict_of_dicts[model_name]['output_h5_fname'])
     
     args=parser.parse_args()
 
     param_dict = vars(args)
-    
+
     return param_dict
 
     # model_type = 'lagrangian'

@@ -1,5 +1,5 @@
 from servir.methods.ExtrapolationMethods.naive_persistence import naive_persistence
-# from servir.methods.ExtrapolationMethods.extrapolation_methods import langragian_persistance, steps, linda
+from servir.methods.ExtrapolationMethods.extrapolation_methods import langragian_persistance, steps, linda
 from servir.methods.ConvLSTM.ConvLSTM import ConvLSTM
 from servir.core.distribution import get_dist_info
 import h5py 
@@ -18,6 +18,7 @@ class ModelPicker:
         self.model_save_location = model_save_location
         self.input_precip = None
         self.use_gpu = use_gpu
+            
     
         
     def load_model(self):
@@ -31,7 +32,6 @@ class ModelPicker:
         elif self.model_type == 'linda':
             self.prediction_function = lambda y: linda(y, timesteps=self.config['out_seq_length'], max_num_features=self.config['max_num_features'], add_perturbations=self.config['add_perturbations'])
         elif self.model_type == 'convlstm':
-            # self.prediction_function = lambda y: 
             if self.use_gpu and torch.cuda.is_available(): 
                 device = torch.device('cuda:0')
             else:

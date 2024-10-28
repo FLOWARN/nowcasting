@@ -11,6 +11,7 @@ def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False):
     # Estimate the motion field
     V = dense_lucaskanade(in_precip)
     nowcast_method = nowcasts.get_method("linda")
+    print("here")
     # The linda nowcast
     forcast = nowcast_method(in_precip, V, timesteps, max_num_features=max_num_features, add_perturbations=add_perturbations)
 

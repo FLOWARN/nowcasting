@@ -11,4 +11,4 @@ setup(name='servir',
       author_email="",
       packages=['servir'],
       package_dir={'servir': '/'},
-      python_requires='>=3.6')
+      python_requires='>=3.12')
