@@ -96,6 +96,7 @@ class ModelPicker:
             self.input_precip = self.input_precip[-self.config['in_seq_length']:, :, :]
             # self.input_precip = np.transpose(self.input_precip, (2, 0, 1))
             self.input_precip = torch.tensor(self.input_precip[:,None,:,:])
+            self.input_precip = torch.tensor(self.input_precip[None,:,:,:,:])
             
             self.prediction_function = model
             
@@ -111,7 +112,7 @@ class ModelPicker:
         
         self.input_precip = input_precip
         self.input_dt = input_dt
-        
+
 
     def predict(self):
         assert self.input_precip is not None, "Data needs to be loaded first, please make a call to load_data()"
@@ -130,6 +131,7 @@ class ModelPicker:
             return pred_Y
         elif self.model_type in ['dgmr']:
             print(self.input_precip.shape)
+            input()
             pred_out_images = self.prediction_function(self.input_precip)
             print(pred_out_images.shape)
             input()

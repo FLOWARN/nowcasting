@@ -7,32 +7,7 @@ import numpy as np
 import torch
 from servir.core.model_picker import ModelPicker
 
-
-def nowcast(param_dict):
-    model_type = param_dict['model_type']
-    model_config_path = param_dict['config_path']
-    model_save_path = param_dict['model_save_path']
-    input_h5_fname = param_dict['input_h5_fname']
-    output_h5_fname = param_dict['output_h5_fname']
-    use_gpu = param_dict['use_gpu']
-    model_picker = ModelPicker(model_type=model_type, 
-                               model_config_location=model_config_path, 
-                               model_save_location=model_save_path,
-                               use_gpu=use_gpu)
-    model_picker.load_data(input_h5_fname)
-    
-    model_picker.load_model()
-    
-    predictions = model_picker.predict()
-    
-    model_picker.save_output(output_h5_fname, predictions)
-
-
-
-def parse_parameters():
-    import argparse
-    
-    param_dict_of_dicts = {'naive':{'model_type': 'naive',
+param_dict_of_dicts = {'naive':{'model_type': 'naive',
                                     'config_path': 'configs/wa_imerg/naive_persistence.py', 
                                     'model_save_path': None, 
                                     'input_h5_fname': 'temp/input_imerg.h5', 
@@ -75,6 +50,37 @@ def parse_parameters():
                                     'use_gpu': False
                            }
                         }
+    
+    
+    
+def nowcast(param_dict):
+    model_type = param_dict['model_type']
+    model_config_path = param_dict['config_path']
+    model_save_path = param_dict['model_save_path']
+    input_h5_fname = param_dict['input_h5_fname']
+    output_h5_fname = param_dict['output_h5_fname']
+    use_gpu = param_dict['use_gpu']
+    model_picker = ModelPicker(model_type=model_type, 
+                               model_config_location=model_config_path, 
+                               model_save_location=model_save_path,
+                               use_gpu=use_gpu)
+    model_picker.load_data(input_h5_fname)
+    
+    model_picker.load_model()
+    
+    predictions = model_picker.predict()
+    
+    model_picker.save_output(output_h5_fname, predictions)
+
+
+def load_default_params_for_model(model_name):
+    assert model_name in list(param_dict_of_dicts.keys())
+    return param_dict_of_dicts[model_name]
+    
+
+def parse_parameters():
+    import argparse
+    
     
     parser=argparse.ArgumentParser()
     
