@@ -126,16 +126,12 @@ class ModelPicker:
             pred_Y = pred_Y.cpu().numpy()
             # reduce batch and channel dimension
             pred_Y = np.squeeze(pred_Y, axis=(0,2))
-            # convert to orignal sacles
+            # convert to original samples
             pred_Y = pred_Y * self.max_rainfall_intensity
             return pred_Y
         elif self.model_type in ['dgmr']:
-            print(self.input_precip.shape)
-            input()
             pred_out_images = self.prediction_function(self.input_precip)
-            print(pred_out_images.shape)
-            input()
-
+            return pred_out_images.detach().numpy()
     
     def save_output(self, output_h5_filename, output_precipitation):
         

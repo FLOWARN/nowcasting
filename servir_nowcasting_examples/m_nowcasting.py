@@ -84,29 +84,20 @@ def parse_parameters():
     
     parser=argparse.ArgumentParser()
     
-    model_name = 'dgmr'
-    print(param_dict_of_dicts[model_name])
-    parser.add_argument("--model_type", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default=param_dict_of_dicts[model_name]['model_type'])
-    parser.add_argument("--config_path", help="Path for config files for model", default=param_dict_of_dicts[model_name]['config_path'])
-    parser.add_argument("--model_save_path", help="Model save path (relevant if the underlying model requires a saved object)", default=param_dict_of_dicts[model_name]['model_save_path'])
-    parser.add_argument("--use_gpu", help="Whether or not to use GPU", default=param_dict_of_dicts[model_name]['use_gpu'], action="store_true")
-    parser.add_argument("--input_h5_fname", help="file name to (optionally create) use for the input image time series", default=param_dict_of_dicts[model_name]['input_h5_fname'])
-    parser.add_argument("--output_h5_fname", help="file name to save outputs to", default=param_dict_of_dicts[model_name]['output_h5_fname'])
+    default_model_name = 'dgmr'
+    print(param_dict_of_dicts[default_model_name])
+    parser.add_argument("--model_type", help="Model Type (naive, lagrangian, linda, steps, convlstm, dgmr)", default=param_dict_of_dicts[default_model_name]['model_type'])
+    parser.add_argument("--config_path", help="Path for config files for model", default=param_dict_of_dicts[default_model_name]['config_path'])
+    parser.add_argument("--model_save_path", help="Model save path (relevant if the underlying model requires a saved object)", default=param_dict_of_dicts[default_model_name]['model_save_path'])
+    parser.add_argument("--use_gpu", help="Whether or not to use GPU", default=param_dict_of_dicts[default_model_name]['use_gpu'], action="store_true")
+    parser.add_argument("--input_h5_fname", help="file name to (optionally create) use for the input image time series", default=param_dict_of_dicts[default_model_name]['input_h5_fname'])
+    parser.add_argument("--output_h5_fname", help="file name to save outputs to", default=param_dict_of_dicts[default_model_name]['output_h5_fname'])
     
     args=parser.parse_args()
 
     param_dict = vars(args)
 
     return param_dict
-
-    # model_type = 'lagrangian'
-    # servir_path ='/home/cc/projects/nowcasting'
-    # config_path = '/home/cc/projects/nowcasting/temp/ConvLSTM_Config.py'
-    # para_dict_fpath = '/home/cc/projects/nowcasting/temp/imerg_only_mse_params.pth'
-    # use_gpu = False
-
-    # input_h5_fname = '/home/cc/projects/nowcasting/temp/input_imerg.h5'
-    # output_h5_fname = '/home/cc/projects/nowcasting/temp/output_imerg.h5'
     
 if __name__ == "__main__":
             
