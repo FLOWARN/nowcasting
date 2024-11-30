@@ -13,7 +13,7 @@ import pandas as pd
 # from osgeo.gdalconst import GA_ReadOnly
 from matplotlib import pyplot as plt
 
-
+import gdal
 
 
 # def tiff2h5py(fPath, fname='wa_imerg.h5', start_date='2011-10-01', end_date='2020-10-01'):
@@ -110,8 +110,6 @@ def save_as_npy(fPath, dPath):
 
 def get_stats(fPath):
     
-    fPath = os.path.join(base_path, 'data/wa_imerg_tif/')
-
     cur_mean = 0.0
     cur_max = 0.0
 

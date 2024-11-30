@@ -6,11 +6,11 @@ from torch.nn.utils.parametrizations import spectral_norm
 
 from servir.methods.dgmr_ir.common import DBlock
 
-
 class Discriminator(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         input_channels: int = 12,
+        num_layers: int = 4,
         num_spatial_frames: int = 8,
         conv_type: str = "standard",
         **kwargs
@@ -25,10 +25,10 @@ class Discriminator(torch.nn.Module, PyTorchModelHubMixin):
         conv_type = self.config["conv_type"]
 
         self.spatial_discriminator = SpatialDiscriminator(
-            input_channels=input_channels, num_timesteps=num_spatial_frames, conv_type=conv_type
+            input_channels=input_channels, num_timesteps=num_spatial_frames, conv_type=conv_type, num_layers = num_layers,
         )
         self.temporal_discriminator = TemporalDiscriminator(
-            input_channels=input_channels, conv_type=conv_type
+            input_channels=input_channels, conv_type=conv_type, num_layers = num_layers,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -57,7 +57,7 @@ class TemporalDiscriminator(torch.nn.Module, PyTorchModelHubMixin):
         config.pop("self")
         self.config = kwargs.get("config", config)
         input_channels = self.config["input_channels"]
-        num_layers = self.config["num_layers"]
+        num_layers = self.config["num_layers"] - 1
         conv_type = self.config["conv_type"]
 
         self.downsample = torch.nn.AvgPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))

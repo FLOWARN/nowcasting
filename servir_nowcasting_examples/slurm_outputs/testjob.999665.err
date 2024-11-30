@@ -1,0 +1,5 @@
+
+CondaError: Run 'conda init' before 'conda activate'
+
+/var/spool/slurmd/job999665/slurm_script: line 21: nvidia-smi: command not found
+python3: can't open file '/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/servir_nowcasting_examples/slurm_outputs/evaluate_results_gpu.py': [Errno 2] No such file or directory

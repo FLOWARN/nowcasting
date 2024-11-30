@@ -6,19 +6,22 @@ from pysteps import nowcasts
 from pysteps import motion
 from pysteps.motion.lucaskanade import dense_lucaskanade
 
-def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False):
+def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False, n_ens_members = 20, return_output=True, kmperpixel=None):
 
     # Estimate the motion field
     V = dense_lucaskanade(in_precip)
     nowcast_method = nowcasts.get_method("linda")
-    print("here")
+    
     # The linda nowcast
-    forcast = nowcast_method(in_precip, V, timesteps, max_num_features=max_num_features, add_perturbations=add_perturbations)
+    forecast = nowcast_method(in_precip, V, timesteps, max_num_features=max_num_features, add_perturbations=add_perturbations, n_ens_members = n_ens_members, return_output=return_output, vel_pert_method=None)
 
-    return forcast
+    if return_output:
+        return forecast
+    else:
+        return np.nanmean(forecast, axis=0)
+    
 
-
-def steps(in_precip, timesteps, n_ens_members = 20, n_cascade_levels=6):
+def steps(in_precip, timesteps, n_ens_members = 20, n_cascade_levels=6, return_output = True):
 
     R_train, _ = transformation.dB_transform(in_precip, threshold=0.1, zerovalue=-15.0)
 
@@ -31,14 +34,17 @@ def steps(in_precip, timesteps, n_ens_members = 20, n_cascade_levels=6):
     # The STEPS nowcast
     nowcast_method = nowcasts.get_method("steps")
     R_forcast = nowcast_method(R_train, V, timesteps, n_ens_members=n_ens_members, n_cascade_levels=n_cascade_levels,\
-                               precip_thr = -10.0, kmperpixel=10, timestep=30)
+                               precip_thr = -10.0, kmperpixel=10, timestep=30, return_output=return_output)
 
     # Back-transform to rain rates
-    R_forcast = transformation.dB_transform(R_forcast, threshold=-10.0, inverse=True)[0]
+    R_forecast = transformation.dB_transform(R_forcast, threshold=-10.0, inverse=True)[0]
 
-    # the ensemble mean
-    R_f_mean = np.nanmean(R_forcast, axis=0)
-
+    if return_output:
+        return R_forecast
+    else:
+        # the ensemble mean
+        R_f_mean = np.nanmean(R_forcast, axis=0)
+        
     return R_f_mean
 
 

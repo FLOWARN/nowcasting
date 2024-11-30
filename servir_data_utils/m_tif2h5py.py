@@ -4,11 +4,10 @@ import sys
 import glob
 import datetime
 import h5py
-
+import json
 import numpy as np
 import osgeo.gdal as gdal
 from osgeo.gdalconst import GA_ReadOnly
-
 ####
 
 # This file is for project pipline only! 
@@ -27,18 +26,10 @@ Returns:
 
     Save precipitation and times in string format to h5py file
 """
-# tif_directory = '/home/cc/projects/nowcasting/temp/'
-# h5_fname = '/home/cc/projects/nowcasting/temp/input_imerg.h5'
 
 
-def tif2h5py(tif_directory, h5_fname):
+def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2):
     filename_extension = 'tif'
-
-
-    # if len(sys.argv) != 3:
-    #     print("Usage: scriptname <path_to_hot_folder>")
-    #     exit(1)
-
 
 
     if os.path.isdir(tif_directory) is False:
@@ -48,7 +39,7 @@ def tif2h5py(tif_directory, h5_fname):
     files = glob.glob(tif_directory + '/*.' + filename_extension)
 
     if not files:
-        print("No files with estension {} found in {}.".format(
+        print("No files with extension {} found in {}.".format(
             filename_extension, tif_directory))
         exit(1)
 
@@ -58,6 +49,7 @@ def tif2h5py(tif_directory, h5_fname):
 
     for file in files:
         tiff_data = gdal.Open(file, GA_ReadOnly)
+        
         imageArray = np.array(tiff_data.GetRasterBand(1).ReadAsArray())
         date_str = file.split("/")[-1].split('.')[2]
         year = date_str[0:4]
@@ -70,6 +62,25 @@ def tif2h5py(tif_directory, h5_fname):
         times.append(dt)
         precipitation.append(imageArray)
 
+    metadata_dict = {}
+    metadata_dict['nx'] = tiff_data.GetRasterBand(1).XSize
+    metadata_dict['ny'] = tiff_data.GetRasterBand(1).YSize
+    metadata_dict['gt'] = tiff_data.GetGeoTransform()
+    metadata_dict['proj'] = tiff_data.GetProjection()
+    metadata_dict['projection'] = tiff_data.GetProjection()
+    metadata_dict['x1'] = x1
+    metadata_dict['y1'] = y1
+    metadata_dict['x2'] = x2
+    metadata_dict['y2'] = y2
+    metadata_dict['yorigin'] = 'upper'
+    
+    
+    
+    
+    
+    with open(meta_fname, 'w') as fp:
+        json.dump(metadata_dict, fp)
+    
     times = np.array(times)
     # images in tensor [T, H, W]
     precipitation = np.transpose(np.dstack(precipitation), (2, 0, 1))
@@ -77,21 +88,32 @@ def tif2h5py(tif_directory, h5_fname):
     sorted_index_array = np.argsort(times)
     sorted_timestamps = times[sorted_index_array]
     sorted_precipitation = precipitation[sorted_index_array]
+    
+    
     # cut off 2 columns of data
-    sorted_precipitation = sorted_precipitation[:, :, 1:-1]
+    # sorted_precipitation = sorted_precipitation[:, :, 1:-1]
 
     st_dt = sorted_timestamps[0].strftime('%Y%m%d%H%M')
     end_dt = sorted_timestamps[-1].strftime('%Y%m%d%H%M')
 
-
+    
     sorted_timestamps_dt = [x.strftime('%Y-%m-%d %H:%M:%S') for x in sorted_timestamps]
+    
+    
     with h5py.File(h5_fname, 'w') as hf:
         hf.create_dataset('precipitations', data=sorted_precipitation)
         hf.create_dataset('timestamps', data=sorted_timestamps_dt)
+        hf.create_dataset('mean', data=np.mean(sorted_precipitation))
+        hf.create_dataset('std', data=np.std(sorted_precipitation))
+        
 
 
 if __name__ == "__main__":
-    tif_directory = sys.argv[1]
-    h5_fname = sys.argv[2]
+    # tif_directory = sys.argv[1]
+    # h5_fname = sys.argv[2]
+    
+    tif_directory = '/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/servir_nowcasting_examples/temp/'
+    h5_fname = '/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/servir_nowcasting_examples/temp/input_imerg.h5'
+    
     tif2h5py(tif_directory, h5_fname)
     

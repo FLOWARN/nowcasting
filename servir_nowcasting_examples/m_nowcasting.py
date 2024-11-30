@@ -52,7 +52,6 @@ param_dict_of_dicts = {'naive':{'model_type': 'naive',
                         }
     
     
-    
 def nowcast(param_dict):
     model_type = param_dict['model_type']
     model_config_path = param_dict['config_path']

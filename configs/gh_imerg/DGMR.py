@@ -7,3 +7,4 @@ latent_channels = 384
 context_channels=192
 normalize_data = False
 img_shape = (64, 64)
+n_ens_members = 10

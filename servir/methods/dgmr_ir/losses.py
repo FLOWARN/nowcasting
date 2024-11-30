@@ -74,6 +74,9 @@ class SSIMLossDynamic(nn.Module):
         return 1.0 - self.ssim_module(x, y)
 
 
+
+
+
 def tv_loss(img, tv_weight):
     """
     Taken from https://github.com/chongyangma/cs231n/blob/master/assignments/assignment3/style_transfer_pytorch.py
@@ -84,7 +87,7 @@ def tv_loss(img, tv_weight):
 
     Returns:
     - loss: PyTorch Variable holding a scalar giving the total variation loss
-      for img weighted by tv_weight.
+    for img weighted by tv_weight.
     """
     w_variance = torch.sum(torch.pow(img[:, :, :, :-1] - img[:, :, :, 1:], 2))
     h_variance = torch.sum(torch.pow(img[:, :, :-1, :] - img[:, :, 1:, :], 2))
@@ -267,6 +270,139 @@ def loss_hinge_disc(score_generated, score_real):
     l2 = F.relu(1.0 + score_generated)
     loss += torch.mean(l2)
     return loss
+
+def loss_accuracy(score_generated, score_real):
+    """ Accuracy value for particular classes"""
+    acc = (torch.sum((1-score_real)  < 0) + torch.sum((1+score_generated)  < 0) )/ (score_real.shape[0] + score_generated.shape[0])
+    return acc
+
+def loss_zero_one(score_generated, score_real):
+    """ Accuracy value for particular classes"""
+    loss = torch.mean(((1-score_real) + (1.0 + score_generated) )/2)
+    return loss
+
+
+
+def CRPS(X_f, X_o):
+    """
+    Compute the continuous ranked probability score (CRPS). Obtained from pysteps implementation.
+
+    Parameters
+    ----------
+    X_f: array_like
+    Array of shape (k,m,n,...) containing the values from an ensemble
+    forecast of k members with shape (m,n,...).
+    X_o: array_like
+    Array of shape (m,n,...) containing the observed values corresponding
+    to the forecast.
+
+    Returns
+    -------
+    out: float
+    The computed CRPS.
+
+    References
+    ----------
+    :cite:`Her2000`
+    """
+
+    X_f = X_f.copy()
+    X_o = X_o.copy()
+    crps = CRPS_init()
+    CRPS_accum(crps, X_f, X_o)
+    return CRPS_compute(crps)
+
+
+def CRPS_init():
+    """
+    Initialize a CRPS object. Obtained from pysteps implementation.
+
+    Returns
+    -------
+    out: dict
+    The CRPS object.
+    """
+    return {"CRPS_sum": 0.0, "n": 0.0}
+
+
+def CRPS_accum(CRPS, X_f, X_o):
+    """
+    Compute the average continuous ranked probability score (CRPS) for a set
+    of forecast ensembles and the corresponding observations and accumulate the
+    result to the given CRPS object. Obtained from pysteps implementation.
+
+    Parameters
+    ----------
+    CRPS: dict
+    The CRPS object.
+    X_f: array_like
+    Array of shape (k,m,n,...) containing the values from an ensemble
+    forecast of k members with shape (m,n,...).
+    X_o: array_like
+    Array of shape (m,n,...) containing the observed values corresponding
+    to the forecast.
+
+    References
+    ----------
+    :cite:`Her2000`
+    """
+    X_f = np.vstack([X_f[i, :].flatten() for i in range(X_f.shape[0])]).T
+    X_o = X_o.flatten()
+
+    mask = np.logical_and(np.all(np.isfinite(X_f), axis=1), np.isfinite(X_o))
+
+    X_f = X_f[mask, :].copy()
+    X_f.sort(axis=1)
+    X_o = X_o[mask]
+
+    n = X_f.shape[0]
+    m = X_f.shape[1]
+
+    alpha = np.zeros((n, m + 1))
+    beta = np.zeros((n, m + 1))
+
+    for i in range(1, m):
+        mask = X_o > X_f[:, i]
+        alpha[mask, i] = X_f[mask, i] - X_f[mask, i - 1]
+        beta[mask, i] = 0.0
+
+        mask = np.logical_and(X_f[:, i] > X_o, X_o > X_f[:, i - 1])
+        alpha[mask, i] = X_o[mask] - X_f[mask, i - 1]
+        beta[mask, i] = X_f[mask, i] - X_o[mask]
+
+        mask = X_o < X_f[:, i - 1]
+        alpha[mask, i] = 0.0
+        beta[mask, i] = X_f[mask, i] - X_f[mask, i - 1]
+
+    mask = X_o < X_f[:, 0]
+    alpha[mask, 0] = 0.0
+    beta[mask, 0] = X_f[mask, 0] - X_o[mask]
+
+    mask = X_f[:, -1] < X_o
+    alpha[mask, -1] = X_o[mask] - X_f[mask, -1]
+    beta[mask, -1] = 0.0
+
+    p = 1.0 * np.arange(m + 1) / m
+    res = np.sum(alpha * p**2.0 + beta * (1.0 - p) ** 2.0, axis=1)
+
+    CRPS["CRPS_sum"] += np.sum(res)
+    CRPS["n"] += len(res)
+
+def CRPS_compute(CRPS):
+    """
+    Compute the averaged values from the given CRPS object. Obtained from pysteps implementation.
+
+    Parameters
+    ----------
+    CRPS: dict
+    A CRPS object created with CRPS_init.
+
+    Returns
+    -------
+    out: float
+    The computed CRPS.
+    """
+    return 1.0 * CRPS["CRPS_sum"] / CRPS["n"]
 
 
 def loss_hinge_gen(score_generated):

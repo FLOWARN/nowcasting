@@ -13,7 +13,9 @@ from servir.methods.dgmr_ir.layers.utils import get_conv_layer
 
 
 class GBlock(torch.nn.Module):
-    """Residual generator block without upsampling"""
+    """Residual generator block without upsampling
+
+    """
 
     def __init__(
         self,
@@ -237,7 +239,7 @@ class LBlock(torch.nn.Module):
     ):
         """
         L-Block for increasing the number of channels in the input
-         from Skillful Nowcasting, see https://arxiv.org/pdf/2104.00954.pdf
+        from Skillful Nowcasting, see https://arxiv.org/pdf/2104.00954.pdf
         Args:
             input_channels: Number of input channels
             output_channels: Number of output channels
@@ -308,7 +310,7 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
         self.config = kwargs.get("config", config)
         input_channels = self.config["input_channels"]
         output_channels = self.config["output_channels"]
-        num_context_steps = self.config["num_context_steps"] + 16
+        num_context_steps = self.config["num_context_steps"]
         conv_type = self.config["conv_type"]
 
         conv2d = get_conv_layer(conv_type)
@@ -376,10 +378,8 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
 
     def forward(
         self, x: torch.Tensor,
-        x_ir: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Each timestep processed separately
-        x = torch.cat([x, x_ir], dim=1)
         x = self.space2depth(x)
         steps = x.size(1)  # Number of timesteps
         scale_1 = []
@@ -395,6 +395,7 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
             scale_2.append(s2)
             scale_3.append(s3)
             scale_4.append(s4)
+        
         scale_1 = torch.stack(scale_1, dim=1)  # B, T, C, H, W and want along C dimension
         scale_2 = torch.stack(scale_2, dim=1)  # B, T, C, H, W and want along C dimension
         scale_3 = torch.stack(scale_3, dim=1)  # B, T, C, H, W and want along C dimension
@@ -404,7 +405,6 @@ class ContextConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
         scale_2 = self._mixing_layer(scale_2, self.conv2)
         scale_3 = self._mixing_layer(scale_3, self.conv3)
         scale_4 = self._mixing_layer(scale_4, self.conv4)
-        
         return scale_1, scale_2, scale_3, scale_4
 
     def _mixing_layer(self, inputs, conv_block):

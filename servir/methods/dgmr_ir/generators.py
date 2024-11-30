@@ -199,7 +199,7 @@ class Generator(torch.nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         conditioning_stack: torch.nn.Module,
-        # conditioning_stack_ir: torch.nn.Module,
+        conditioning_stack_ir: torch.nn.Module,
         latent_stack: torch.nn.Module,
         sampler: torch.nn.Module,
     ):
@@ -212,16 +212,26 @@ class Generator(torch.nn.Module, PyTorchModelHubMixin):
         """
         super().__init__()
         self.conditioning_stack = conditioning_stack
-        # self.conditioning_stack_ir = conditioning_stack_ir
+        self.conditioning_stack_ir = conditioning_stack_ir
         self.latent_stack = latent_stack
         self.sampler = sampler
     
     def forward(self, x, x_ir):
-        conditioning_states = self.conditioning_stack(x, x_ir)
-        # conditioning_states_ir = self.conditioning_stack_ir(x_ir)
+        conditioning_states = self.conditioning_stack(x)
+        conditioning_states_ir = self.conditioning_stack_ir(x_ir)
         
+        # print(conditioning_states[0].shape, conditioning_states[1].shape, conditioning_states[2].shape, conditioning_states[3].shape)
+        # print("=============")
+        # print(conditioning_states_ir[0].shape, conditioning_states_ir[1].shape, conditioning_states_ir[2].shape, conditioning_states_ir[3].shape)
+        # print("=============")
+        # print(conditioning_states_ir[0].shape, conditioning_states_ir[1].shape, conditioning_states_ir[2].shape, conditioning_states_ir[3].shape)
+        # input()
         # modified_conditioning_states = tuple([torch.cat([x, y], axis=1) for x,y in zip(conditioning_states, conditioning_states_ir)])
-        # modified_conditioning_states = tuple([torch.multiply(x,y) for x,y in zip(conditioning_states, conditioning_states_ir)])
+        modified_conditioning_states = tuple([torch.multiply(x,y) for x,y in zip(conditioning_states, conditioning_states_ir)])
+        
+        # print(modified_conditioning_states[0].shape, modified_conditioning_states[1].shape, modified_conditioning_states[2].shape, modified_conditioning_states[3].shape)
+        # input()
+        
         latent_dim = self.latent_stack(x)
         x = torch.relu(self.sampler(conditioning_states, latent_dim))
         return x

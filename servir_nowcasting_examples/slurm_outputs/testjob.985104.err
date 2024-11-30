@@ -1,5 +1,0 @@
-
-CondaError: Run 'conda init' before 'conda activate'
-
-/var/spool/slurmd/job985104/slurm_script: line 20: nvidia-smi: command not found
-/var/spool/slurmd/job985104/slurm_script: line 22:  1103 Segmentation fault      python3 m_nowcasting.py

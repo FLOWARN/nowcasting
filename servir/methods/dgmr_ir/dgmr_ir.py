@@ -13,9 +13,11 @@ from servir.methods.dgmr_ir.losses import (
     loss_hinge_disc,
     loss_hinge_gen,
     FSS,
-    threshold_quantile_loss
+    loss_accuracy,
+    loss_zero_one,
+    threshold_quantile_loss,
+    CRPS
 )
-
 
 class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
     """Deep Generative Model of Radar"""
@@ -24,12 +26,11 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         self,
         forecast_steps: int = 18,
         input_channels: int = 1,
-        output_shape: int = 256,
-        gen_lr: float = 5e-6,
-        disc_lr: float = 2e-5,
+        output_shape: int = (64,64),
+        gen_lr: float = 5e-5,
+        disc_lr: float = 2e-4,
         visualize: bool = False,
         conv_type: str = "standard",
-        num_samples: int = 6,
         grid_lambda: float = 20.0,
         beta1: float = 0.0,
         beta2: float = 0.999,
@@ -37,6 +38,7 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         context_channels: int = 384,
         generation_steps: int = 6,
         num_history_steps: int=8,
+        num_layers = 4,
         **kwargs,
     ):
         """
@@ -52,7 +54,6 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             conv_type: Type of 2d convolution to use, see satflow/models/utils.py for options
             beta1: Beta1 for Adam optimizer
             beta2: Beta2 for Adam optimizer
-            num_samples: Number of samples of the latent space to sample for training/validation
             grid_lambda: Lambda for the grid regularization loss
             output_shape: Shape of the output predictions, generally should be same as the input shape
             generation_steps: Number of generation steps to use in forward pass, in paper is 6 and the best is chosen for the loss
@@ -69,10 +70,11 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         input_channels = self.config["input_channels"]
         forecast_steps = self.config["forecast_steps"]
         output_shape = self.config["output_shape"]
+        num_layers = self.config["num_layers"]
+        
         gen_lr = self.config["gen_lr"]
         disc_lr = self.config["disc_lr"]
         conv_type = self.config["conv_type"]
-        num_samples = self.config["num_samples"]
         grid_lambda = self.config["grid_lambda"]
         beta1 = self.config["beta1"]
         beta2 = self.config["beta2"]
@@ -86,12 +88,13 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         self.discriminator_loss = NowcastingLoss()
         self.grid_regularizer = GridCellLoss()
         self.grid_lambda = grid_lambda
-        self.num_samples = num_samples
         self.visualize = visualize
         self.latent_channels = latent_channels
         self.context_channels = context_channels
         self.input_channels = input_channels
         self.generation_steps = generation_steps
+        self.num_layers = num_layers
+        
         
         # IMERG context conditioning stack
         self.conditioning_stack = ContextConditioningStack(
@@ -100,17 +103,17 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             output_channels=self.context_channels,
             num_context_steps=num_history_steps,
         )
-        # IR context conditioning stack
-        # self.conditioning_stack_ir = ContextConditioningStack(
-        #     input_channels=input_channels,
-        #     conv_type=conv_type,
-        #     output_channels=self.context_channels,
-        #     num_context_steps=num_history_steps
-        # )
+        
+        self.conditioning_stack_ir = ContextConditioningStack(
+            input_channels=input_channels,
+            conv_type=conv_type,
+            output_channels=self.context_channels,
+            num_context_steps = 16
+        )
         
         
         self.latent_stack = LatentConditioningStack(
-            shape=(8 * self.input_channels, output_shape // 32, output_shape // 32),
+            shape=(8 * self.input_channels, output_shape[0] // 32, output_shape[1] // 32),
             output_channels=self.latent_channels,
         )
         
@@ -120,8 +123,8 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             context_channels=self.context_channels,
         )
         
-        self.generator = Generator(self.conditioning_stack, self.latent_stack, self.sampler)
-        self.discriminator = Discriminator(input_channels)
+        self.generator = Generator(self.conditioning_stack, self.conditioning_stack_ir,self.latent_stack, self.sampler)
+        self.discriminator = Discriminator(input_channels, num_layers = self.num_layers)
         self.save_hyperparameters()
 
         self.global_iteration = 0
@@ -133,14 +136,20 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
     def forward(self, x, x_ir):
         x = self.generator(x, x_ir)
         return x
+    
+    def predict_ensemble(self, x, x_ir, n_ens_members = 10, is_numpy=False):
+        predictions = [self.generator(x, x_ir) for _ in range(n_ens_members)]
+        if is_numpy:
+            predictions = [x.cpu().detach().numpy() for x in  predictions]
+        return predictions
 
     def set_trainer(self, trainer):
         self.trainer = trainer
     
     def training_step(self, batch, batch_idx):
         images, ir_images, future_images = batch
-        images = images.double()
-        future_images = future_images.double()
+        images = images
+        future_images = future_images
         
         self.global_iteration += 1
         g_opt, d_opt = self.optimizers()
@@ -168,6 +177,11 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             score_generated_spatial, score_generated_temporal = torch.split(
                 score_generated, 1, dim=1
             )
+            # spatial_accuracy = loss_accuracy(score_generated_spatial, score_real_spatial)
+            # temporal_accuracy = loss_accuracy(score_generated_temporal, score_real_temporal)           
+            spatial_01loss = loss_zero_one(score_generated_spatial, score_real_spatial)
+            temporal_01loss = loss_zero_one(score_generated_temporal, score_real_temporal)
+            
             discriminator_loss = loss_hinge_disc(
                 score_generated_spatial, score_real_spatial
             ) + loss_hinge_disc(score_generated_temporal, score_real_temporal)
@@ -175,9 +189,17 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             self.manual_backward(discriminator_loss)
             d_opt.step()
 
-        fss_loss =  FSS(predictions, future_images,self.device , threshold = 2)
-        quantile_loss = threshold_quantile_loss(future_images, predictions, threshold=2, quantile=0.75)
+        # fss_loss =  FSS(predictions, future_images,self.device , threshold = 2)
+        # quantile_loss = threshold_quantile_loss(future_images, predictions, threshold=2, quantile=0.75)
+        ensemble_prediction = self.predict_ensemble(images, ir_images,  n_ens_members=20, is_numpy = True)
+        rearanged_output = np.array(ensemble_prediction).transpose(1, 0, 2, 3, 4, 5)[:,:,:,0,:,:]
+        crps_list = []
+        for  data_sample_index in range(len(rearanged_output)):
+            output = rearanged_output[data_sample_index]
+            crps = CRPS(output, future_images.cpu().detach().numpy()[:,:,0,:,:][data_sample_index])
+            crps_list.append(crps)
         
+        mean_crps = np.mean(crps_list)
         
         ######################
         # Optimize Generator #
@@ -210,8 +232,10 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             {
                 "train/d_loss": discriminator_loss,
                 "train/g_loss": generator_loss,
-                "train/fss_loss": fss_loss,
-                "train/quantile_loss": quantile_loss,
+                "train/mean_crps": mean_crps,
+                "train/spatial_01loss": spatial_01loss,
+                "train/temporal_01loss": temporal_01loss,
+                "train/average_01loss": (spatial_01loss + temporal_01loss) / 2,
                 "train/grid_loss": grid_cell_reg,
             },
             prog_bar=True,
@@ -228,8 +252,7 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
 
     def validation_step(self, batch, batch_idx):
         images, ir_images, future_images = batch
-        images = images.double()
-        future_images = future_images.double()
+        
         ##########################
         # Optimize Discriminator #
         ##########################
@@ -251,6 +274,10 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             score_generated_spatial, score_generated_temporal = torch.split(
                 score_generated, 1, dim=1
             )
+            spatial_01loss = loss_zero_one(score_generated_spatial, score_real_spatial)
+            temporal_01loss = loss_zero_one(score_generated_temporal, score_real_temporal)
+            
+            
             discriminator_loss = loss_hinge_disc(
                 score_generated_spatial, score_real_spatial
             ) + loss_hinge_disc(score_generated_temporal, score_real_temporal)
@@ -258,6 +285,16 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         
         fss_loss =  FSS(predictions, future_images,self.device , threshold = 2)
         quantile_loss = threshold_quantile_loss(future_images, predictions, threshold=2, quantile=0.75)
+        
+        ensemble_prediction = self.predict_ensemble(images, ir_images, n_ens_members=20, is_numpy = True)
+        rearanged_output = np.array(ensemble_prediction).transpose(1, 0, 2, 3, 4, 5)[:,:,:,0,:,:]
+        crps_list = []
+        for  data_sample_index in range(len(rearanged_output)):
+            output = rearanged_output[data_sample_index]
+            crps = CRPS(output, future_images.cpu().detach().numpy()[:,:,0,:,:][data_sample_index])
+            crps_list.append(crps)
+        
+        mean_crps = np.mean(crps_list)
         
         
         ######################
@@ -287,9 +324,11 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             {
                 "val/d_loss": discriminator_loss,
                 "val/g_loss": generator_loss,
+                "val/mean_crps": mean_crps,
+                "val/spatial_01loss": spatial_01loss,
+                "val/temporal_01loss": temporal_01loss,
+                "val/average_01loss": (spatial_01loss + temporal_01loss) / 2,
                 "val/grid_loss": grid_cell_reg,
-                "val/quantile_loss": quantile_loss,
-                "val/fss_loss": fss_loss
             },
             prog_bar=True,
             on_epoch=True,
@@ -318,23 +357,27 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
         self, x: torch.Tensor, y: torch.Tensor, y_hat: torch.Tensor, batch_idx: int, step: str
     ) -> None:
         # the logger you used (in this case tensorboard)
-        tensorboard = self.logger.experiment[0]
+        tensorboard = self.logger.experiment
         # Timesteps per channel
         images = x[0].cpu().detach()
         future_images = y[0].cpu().detach()
         generated_images = y_hat[0].cpu().detach()
+        
         for i, t in enumerate(images):  # Now would be (C, H, W)
             t = [torch.unsqueeze(img, dim=0) for img in t]
             image_grid = torchvision.utils.make_grid(t, nrow=self.input_channels)
             tensorboard.add_image(
                 f"{step}/Input_Image_Stack_Frame_{i}", image_grid, global_step=batch_idx
             )
-            t = [torch.unsqueeze(img, dim=0) for img in future_images[i]]
+        for i, t in enumerate(future_images):  # Now would be (C, H, W) 
+            t = [torch.unsqueeze(img, dim=0) for img in t]
             image_grid = torchvision.utils.make_grid(t, nrow=self.input_channels)
             tensorboard.add_image(
                 f"{step}/Target_Image_Frame_{i}", image_grid, global_step=batch_idx
             )
-            t = [torch.unsqueeze(img, dim=0) for img in generated_images[i]]
+            
+        for i, t in enumerate(generated_images):  # Now would be (C, H, W) 
+            t = [torch.unsqueeze(img, dim=0) for img in t]
             image_grid = torchvision.utils.make_grid(t, nrow=self.input_channels)
             tensorboard.add_image(
                 f"{step}/Generated_Image_Frame_{i}", image_grid, global_step=batch_idx

@@ -29,7 +29,7 @@ def h5py2tif(h5_fname, meta_fname, tif_directory):
             nx = meta['nx']
             ny = meta['ny'] 
             gt = meta['gt'] 
-            proj = meta['proj'] 
+            proj = meta['proj']
 
             return nx, ny, gt, proj
 
@@ -59,12 +59,16 @@ def h5py2tif(h5_fname, meta_fname, tif_directory):
 
     for i in range(len(output_dts)):
         dt_str = output_dts[i].strftime('%Y%m%d%H%M')
-        gridOutName = os.path.join(tif_directory, f"imerg_{dt_str}.tif")
+        gridOutName = os.path.join(tif_directory, f"imerg.qpf.{dt_str}.30minAccum.tif")
         WriteGrid(gridOutName, pred_imgs[i], nx, ny, gt, proj)
 
 
 if __name__ == "__main__":
-    h5_fname =  sys.argv[1] 
-    meta_fname = sys.argv[2]
-    tif_directory = sys.argv[3]
-    h5py2tif(h5_fname, meta_fname, tif_directory)
+    # h5_fname =  sys.argv[1] 
+    # meta_fname = sys.argv[2]
+    # tif_directory = sys.argv[3]
+    
+    
+    h5py2tif(h5_fname='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/servir_nowcasting_examples/temp/output_imerg.h5', 
+             meta_fname='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/servir_nowcasting_examples/temp/imerg_geotiff_meta.json', 
+             tif_directory='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/precip')

@@ -10,6 +10,8 @@ import functools
 import torch
 from servir.utils.data_provider import ImergDataset, IMERGDataModule
 from servir.methods.dgmr.dgmr import DGMR
+from servir.methods.dgmr_ir.dgmr_ir import DGMR_IR
+
 
 class ModelPicker:
     def __init__(self, model_type, model_config_location, model_save_location=None, use_gpu=False) -> None:
@@ -19,18 +21,23 @@ class ModelPicker:
         self.input_precip = None
         self.use_gpu = use_gpu
             
-    
-        
-    def load_model(self):
+
+    def load_model(self, get_ensemble=True):
         self.config = load_config(self.model_config_location)
+        
+        if not get_ensemble:
+            n_ens_members = 1
+        else:
+            n_ens_members = self.config['n_ens_members']
+            
         if self.model_type == 'naive':
             self.prediction_function = lambda y: naive_persistence(y, output_sequence_length=self.config['out_seq_length'])
         elif self.model_type == 'lagrangian':
             self.prediction_function = lambda y: langragian_persistance(y, timesteps=self.config['out_seq_length'])
         elif self.model_type == 'steps':
-            self.prediction_function = lambda y: steps(y, timesteps=self.config['out_seq_length'], n_cascade_levels=self.config['n_cascade_levels'], n_ens_members=self.config['n_ens_members'])
+            self.prediction_function = lambda y: steps(y, timesteps=self.config['out_seq_length'], n_cascade_levels=self.config['n_cascade_levels'], n_ens_members=n_ens_members, return_output=True)
         elif self.model_type == 'linda':
-            self.prediction_function = lambda y: linda(y, timesteps=self.config['out_seq_length'], max_num_features=self.config['max_num_features'], add_perturbations=self.config['add_perturbations'])
+            self.prediction_function = lambda y: linda(y, timesteps=self.config['out_seq_length'], max_num_features=self.config['max_num_features'], n_ens_members=n_ens_members, add_perturbations=self.config['add_perturbations'], return_output=True,)
         elif self.model_type == 'convlstm':
             if self.use_gpu and torch.cuda.is_available(): 
                 device = torch.device('cuda:0')
@@ -41,7 +48,7 @@ class ModelPicker:
             self.config['relu_last'] = True
             conv_lstm_nodel =ConvLSTM(self.config) 
             if not self.use_gpu:
-                conv_lstm_nodel.model.load_state_dict(torch.load(self.model_save_location, map_location=torch.device('cpu')))
+                conv_lstm_nodel.model.load_state_dict(torch.load(self.model_save_location, map_location=torch.device('cpu'), weights_only=False))
             else:
                 conv_lstm_nodel.model.load_state_dict(torch.load(self.model_save_location))
 
@@ -60,48 +67,17 @@ class ModelPicker:
             else:
                 device = torch.device('cpu')
             
-            # datamodule = IMERGDataModule(forecast_steps = self.config['out_seq_length'],
-            # history_steps = self.config['in_seq_length'],
-            # imerg_filename = self.input_h5_filename,
-            # ir_filename = None,
-            # batch_size = self.config['batch_size'],
-            # )
-        
-            # input_channels = self.config['input_channels']
-            # output_shape = self.config['img_shape']
-            # model = DGMR(
-            #     forecast_steps=self.config['out_seq_length'],
-            #     input_channels=input_channels,
-            #     output_shape=output_shape,
-            #     latent_channels=self.config['latent_channels'], 
-            #     context_channels=self.config['context_channels'], 
-            #     num_samples=5,
-            #     visualize=False
-            # )
-            model = DGMR.load_from_checkpoint(self.model_save_location, map_location=device)
+            model = DGMR.load_from_checkpoint(self.model_save_location, map_location=device)    
+            self.prediction_function = lambda y: model.predict_ensemble(y, n_ens_members= n_ens_members)
+        elif self.model_type == 'dgmr_ir':
+            if self.use_gpu and torch.cuda.is_available(): 
+                device = torch.device('cuda:0')
+            else:
+                device = torch.device('cpu')
             
-            self.input_precip = self.input_precip.astype(np.float32)
-            img_height = self.config['img_shape'][0]
-            img_width = self.config['img_shape'][1]
+            model = DGMR_IR.load_from_checkpoint(self.model_save_location, map_location=device)    
+            self.prediction_function = lambda y, y_ir: model.predict_ensemble(y, y_ir, n_ens_members = n_ens_members)
             
-            if img_height != self.input_precip.shape[1]:
-                h_start = (self.input_precip.shape[1] - img_height) // 2
-                self.input_precip = self.input_precip[:, h_start:h_start+img_height, :]
-            
-            if img_width != self.input_precip.shape[2]:
-                w_start = (self.input_precip.shape[2] - img_width) // 2
-                self.input_precip = self.input_precip[:, :, w_start:w_start+img_width]
-
-
-            self.input_precip = self.input_precip[-self.config['in_seq_length']:, :, :]
-            # self.input_precip = np.transpose(self.input_precip, (2, 0, 1))
-            self.input_precip = torch.tensor(self.input_precip[:,None,:,:])
-            self.input_precip = torch.tensor(self.input_precip[None,:,:,:,:])
-            
-            self.prediction_function = model
-            
-            
-    
     def load_data(self, input_h5_filename):
         self.input_h5_filename = input_h5_filename
         # Load the input precipitations
@@ -113,8 +89,13 @@ class ModelPicker:
         self.input_precip = input_precip
         self.input_dt = input_dt
 
-
-    def predict(self):
+    def predict(self, samples = None, samples_ir = None):
+        
+        if samples is not None:
+            self.input_precip = samples
+        
+        self.input_ir = samples_ir
+            
         assert self.input_precip is not None, "Data needs to be loaded first, please make a call to load_data()"
         if self.model_type in ['naive', 'linda', 'steps', 'lagrangian']:
             return self.prediction_function(self.input_precip)
@@ -130,8 +111,57 @@ class ModelPicker:
             pred_Y = pred_Y * self.max_rainfall_intensity
             return pred_Y
         elif self.model_type in ['dgmr']:
+            if samples is None:
+                self.input_precip = self.input_precip.astype(np.float32)
+                img_height = self.config['img_shape'][0]
+                img_width = self.config['img_shape'][1]
+                
+                if img_height != self.input_precip.shape[1]:
+                    h_start = (self.input_precip.shape[1] - img_height) // 2
+                    self.input_precip = self.input_precip[:, h_start:h_start+img_height, :]
+                
+                if img_width != self.input_precip.shape[2]:
+                    w_start = (self.input_precip.shape[2] - img_width) // 2
+                    self.input_precip = self.input_precip[:, :, w_start:w_start+img_width]
+                    
+                self.input_precip = self.input_precip[-self.config['in_seq_length']:, :, :]
+                # self.input_precip = np.transpose(self.input_precip, (2, 0, 1))
+                self.input_precip = torch.tensor(self.input_precip[:,None,:,:])
+                self.input_precip = torch.tensor(self.input_precip[None,:,:,:,:])
+            else:
+                self.input_precip = samples
+                pred_out_images = self.prediction_function(self.input_precip)
+                pred_out_images = [x.detach().numpy() for x in  pred_out_images]
+                return pred_out_images
+        elif self.model_type in ['dgmr_ir']:
+            if samples is None:
+                self.input_precip = self.input_precip.astype(np.float32)
+                img_height = self.config['img_shape'][0]
+                img_width = self.config['img_shape'][1]
+                
+                if img_height != self.input_precip.shape[1]:
+                    h_start = (self.input_precip.shape[1] - img_height) // 2
+                    self.input_precip = self.input_precip[:, h_start:h_start+img_height, :]
+                
+                if img_width != self.input_precip.shape[2]:
+                    w_start = (self.input_precip.shape[2] - img_width) // 2
+                    self.input_precip = self.input_precip[:, :, w_start:w_start+img_width]
+                    
+                self.input_precip = self.input_precip[-self.config['in_seq_length']:, :, :]
+                # self.input_precip = np.transpose(self.input_precip, (2, 0, 1))
+                self.input_precip = torch.tensor(self.input_precip[:,None,:,:])
+                self.input_precip = torch.tensor(self.input_precip[None,:,:,:,:])
+                
+            else:
+                self.input_precip = samples
+                pred_out_images = self.prediction_function(self.input_precip, self.input_ir)
+                pred_out_images = [x.detach().numpy() for x in  pred_out_images]
+                return pred_out_images
+            
             pred_out_images = self.prediction_function(self.input_precip)
-            return pred_out_images.detach().numpy()
+            pred_out_images = [x.detach().numpy() for x in  pred_out_images]
+            
+            return pred_out_images
     
     def save_output(self, output_h5_filename, output_precipitation):
         
