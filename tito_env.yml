@@ -351,4 +351,3 @@ dependencies:
       - xarray==2024.10.0
       - yacs==0.1.8
       - yarl==1.16.0
-prefix: /volume/NFS/aa3328/miniconda3/envs/tito_env
