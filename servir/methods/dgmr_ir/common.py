@@ -473,6 +473,7 @@ class LatentConditioningStack(torch.nn.Module, PyTorchModelHubMixin):
 
         # Independent draws from Normal distribution
         z = self.distribution.sample(self.shape)
+        
         # Batch is at end for some reason, reshape
         z = torch.permute(z, (3, 0, 1, 2)).type_as(x)
 

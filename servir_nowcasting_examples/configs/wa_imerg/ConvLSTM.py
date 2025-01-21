@@ -47,3 +47,4 @@ DataParallel = False
 distributed = False
 num_workers = 4
 steps_per_epoch = 1
+n_ens_members = 1

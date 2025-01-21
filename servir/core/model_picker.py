@@ -11,7 +11,7 @@ import torch
 from servir.utils.data_provider import ImergDataset, IMERGDataModule
 from servir.methods.dgmr.dgmr import DGMR
 from servir.methods.dgmr_ir.dgmr_ir import DGMR_IR
-
+import os
 
 class ModelPicker:
     def __init__(self, model_type, model_config_location, model_save_location=None, use_gpu=False) -> None:
@@ -37,7 +37,7 @@ class ModelPicker:
         elif self.model_type == 'steps':
             self.prediction_function = lambda y: steps(y, timesteps=self.config['out_seq_length'], n_cascade_levels=self.config['n_cascade_levels'], n_ens_members=n_ens_members, return_output=True)
         elif self.model_type == 'linda':
-            self.prediction_function = lambda y: linda(y, timesteps=self.config['out_seq_length'], max_num_features=self.config['max_num_features'], n_ens_members=n_ens_members, add_perturbations=self.config['add_perturbations'], return_output=True,)
+            self.prediction_function = lambda y: linda(y, timesteps=self.config['out_seq_length'], max_num_features=self.config['max_num_features'], n_ens_members=n_ens_members, add_perturbations=self.config['add_perturbations'], return_output=True)
         elif self.model_type == 'convlstm':
             if self.use_gpu and torch.cuda.is_available(): 
                 device = torch.device('cuda:0')
@@ -46,28 +46,21 @@ class ModelPicker:
             self.config['device'] = device
             self.config['rank'], self.config['world_size'] = get_dist_info()
             self.config['relu_last'] = True
-            conv_lstm_nodel =ConvLSTM(self.config) 
+            conv_lstm_model =ConvLSTM(self.config) 
             if not self.use_gpu:
-                conv_lstm_nodel.model.load_state_dict(torch.load(self.model_save_location, map_location=torch.device('cpu'), weights_only=False))
+                conv_lstm_model.model.load_state_dict(torch.load(self.model_save_location, map_location=torch.device('cpu'), weights_only=False))
             else:
-                conv_lstm_nodel.model.load_state_dict(torch.load(self.model_save_location))
+                conv_lstm_model.model.load_state_dict(torch.load(self.model_save_location))
 
-            self.max_rainfall_intensity = 60
-            self.input_precip =  self.input_precip / self.max_rainfall_intensity
-            # add batch and channel dimension to input. From [T, H, W] to [B, T, C, H, W]
-            self.input_precip = np.expand_dims(self.input_precip, axis=(0,2))
-            
-            Y = torch.tensor(np.zeros(self.input_precip.shape), dtype=torch.float32, device=device)
-            Y = torch.tensor(Y, dtype=torch.float32, device=device)
-            
-            self.prediction_function = lambda x: conv_lstm_nodel._predict(torch.tensor(x, dtype=torch.float32, device=device),Y)
+            self.prediction_function = lambda x,y: conv_lstm_model._predict(torch.tensor(x, dtype=torch.float32, device=device),y)
+        
         elif self.model_type == 'dgmr':
             if self.use_gpu and torch.cuda.is_available(): 
                 device = torch.device('cuda:0')
             else:
                 device = torch.device('cpu')
             
-            model = DGMR.load_from_checkpoint(self.model_save_location, map_location=device)    
+            model = DGMR.load_from_checkpoint(self.model_save_location, map_location=device)
             self.prediction_function = lambda y: model.predict_ensemble(y, n_ens_members= n_ens_members)
         elif self.model_type == 'dgmr_ir':
             if self.use_gpu and torch.cuda.is_available(): 
@@ -98,11 +91,32 @@ class ModelPicker:
             
         assert self.input_precip is not None, "Data needs to be loaded first, please make a call to load_data()"
         if self.model_type in ['naive', 'linda', 'steps', 'lagrangian']:
-            return self.prediction_function(self.input_precip)
+            return self.prediction_function(self.input_precip[-self.config['in_seq_length']:])
         elif self.model_type in ['convlstm']:
-            # convert to tensor 
+            self.img_height = self.config['img_height']
+            self.img_width = self.config['img_width']
+            self.max_rainfall_intensity = 60
+            input_precip =  self.input_precip / self.max_rainfall_intensity
+            self.img_height = self.config['img_height']
+            self.img_width = self.config['img_width']
+            
+            if self.img_height != input_precip.shape[1]:
+                h_start = (input_precip.shape[1] - self.img_height) // 2
+                input_precip = input_precip[:, h_start:h_start+self.img_height, :]
+        
+            if self.img_width != input_precip.shape[2]:
+                w_start = (input_precip.shape[2] - self.img_width) // 2
+                input_precip = input_precip[:, :, w_start:w_start+self.img_width]
+
+            # add batch and channel dimension to input. From [T, H, W] to [B, T, C, H, W]
+            input_precip = np.expand_dims(input_precip, axis=(0,2))
+            
+            Y = torch.tensor(np.zeros(input_precip.shape), dtype=torch.float32, device=self.config['device'])
+            Y = torch.tensor(Y, dtype=torch.float32, device= self.config['device'])
+            
+            # convert to tensor
             with torch.no_grad():
-                pred_Y = self.prediction_function(self.input_precip)
+                pred_Y = self.prediction_function(input_precip[:,-self.config['in_seq_length']:,:,:,:], Y)
             # convert to numpy
             pred_Y = pred_Y.cpu().numpy()
             # reduce batch and channel dimension
@@ -163,10 +177,26 @@ class ModelPicker:
             
             return pred_out_images
     
+    def train(self, model_name, model, train_dataset, test_dataset, validation_dataset):
+        
+        if model_name in ['lagrangian', 'naive', 'steps', 'linda']:
+            raise Exception("Model has no training involved")
+        elif model_name in ['convlstm']:
+            
+            
+            print("training convlstm")
+    
     def save_output(self, output_h5_filename, output_precipitation):
         
         output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=30*(k+1)) for k in range(self.config['out_seq_length'])]
         output_dt_str = [x.strftime('%Y-%m-%d %H:%M:%S') for x in output_dt]
+
+        # delete any existing file
+        if os.path.isfile(output_h5_filename):
+            with h5py.File(output_h5_filename,  "a") as f:
+                del f['precipitations']
+                del f['timestamps']
+                
 
         # save results to h5py file
         with h5py.File(output_h5_filename,'w') as hf:

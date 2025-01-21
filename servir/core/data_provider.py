@@ -20,15 +20,14 @@ class ImergGhanaDataset(Dataset):
         self.img_width = image_shape[1]
 
 
-        
         # crop the image to the desired shape(center crop)
         if self.img_height != self.precipitation_time_series.shape[1]:
             h_start = (self.precipitation_time_series.shape[1] - self.img_height) // 2
             self.precipitation_time_series = self.precipitation_time_series[:, h_start:h_start+self.img_height, :]
         
         if self.img_width != precipitation_time_series.shape[2]:
-            w_start = (precipitation_time_series.shape[2] - self.img_width) // 2
-            precipitation_time_series = precipitation_time_series[:, :, w_start:w_start+self.img_width]
+            w_start = (self.precipitation_time_series.shape[2] - self.img_width) // 2
+            self.precipitation_time_series = self.precipitation_time_series[:, :, w_start:w_start+self.img_width]
 
         print("original shape", precipitation_time_series.shape)
         monthly_input_precipitation = sliding_window_view(precipitation_time_series,
@@ -238,7 +237,8 @@ class ImergGhanaMonthlyDataset(Dataset):
         #     self.input_IR = (self.input_IR[:,-16:,None,:,:]-mean_ir)/std_ir
         #     self.input_IR = np.nan_to_num(self.input_IR, 0.)
         # else:
-        self.input_IR = self.input_IR[:,-16:,None,:,:]
+        self.input_IR = (self.input_IR[:,-16:,None,:,:]/343.1587)*53.2
+        self.input_IR = np.nan_to_num(self.input_IR, 0.)
         
         self.output_IR = np.transpose(self.output_IR, (0, 3, 1, 2))
         # if self.normalize_data == True:
@@ -286,7 +286,7 @@ class ImergWADataset(Dataset):
 
         with h5py.File(self.imerg_filename, 'r') as hf:
             precipitation_time_series = hf['precipitations'][:].astype(np.float32)
-            
+            timestamps = hf['timestamps'][:]
             # crop the image to the desired shape(center crop)
             
             if self.img_height != precipitation_time_series.shape[1]:
@@ -302,7 +302,14 @@ class ImergWADataset(Dataset):
             self.input_precipitation = sliding_window_view(precipitation_time_series,
                                                     window_shape=history_steps, 
                                                     axis=0)[:-forecast_steps]
+            self.input_timestamps = sliding_window_view(timestamps,
+                                                    window_shape=history_steps, 
+                                                    axis=0)[:-forecast_steps]
+            
             self.output_precipitation = sliding_window_view(precipitation_time_series[history_steps:],
+                                                        window_shape=forecast_steps, 
+                                                        axis=0)
+            self.output_timestamps = sliding_window_view(timestamps[history_steps:],
                                                         window_shape=forecast_steps, 
                                                         axis=0)
             
@@ -394,6 +401,16 @@ class ImergWADataset(Dataset):
     
     def __len__(self):
         return len(self.output_precipitation)
+    
+    def get_input_timestamps(self):
+        return self.input_timestamps
+    
+    def get_output_timestamps(self):
+        return self.output_timestamps
+    
+    def get_output_precipitation(self):
+        return self.output_precipitation[:,:,0,:,:]
+
 
 
 
@@ -518,5 +535,130 @@ class IMERGDataModule(L.LightningDataModule):
     def event_dataloader(self):
         dataloader = DataLoader(self.dataset, batch_size=self.batch_size, num_workers=2)
         return dataloader
+
+class ImergGhanaDatasetLP(Dataset):
+    def __init__(self, ir_input_dataset, input_filename, lp_filename, output_filename, dataset_type):
+        super(ImergGhanaDatasetLP, self).__init__()
+        
+        with h5py.File(ir_input_dataset, 'r') as hf:
+            self.ir_input_precipitation = hf['{}_ir'.format(dataset_type)][:].astype(np.float32)
+        
+        with h5py.File(input_filename, 'r') as hf:
+            self.input_precipitation = hf['{}_input'.format(dataset_type)][:].astype(np.float32)
+        print(lp_filename)
+        with h5py.File(lp_filename, 'r') as hf:
+            self.lp_output = hf['{}_lp_output'.format(dataset_type)][:].astype(np.float32)
+        with h5py.File(output_filename, 'r') as hf:
+            self.output_precipitation = hf['{}_y'.format(dataset_type)][:].astype(np.float32)
+        
+        
+    def __getitem__(self, idx):
+        return self.input_precipitation[idx], self.ir_input_precipitation[idx], self.output_precipitation[idx]
+    
+    def __len__(self):
+        return len(self.ir_input_precipitation)
+
+
+
+
+
+
+class IMERGDataModuleLP(L.LightningDataModule):
+    """
+    Example of LightningDataModule for h5py IMERS dataset.
+    A DataModule implements 5 key methods:
+        - prepare_data (things to do on 1 GPU/TPU, not on every GPU/TPU in distributed mode)
+        - setup (things to do on every accelerator in distributed mode)
+        - train_dataloader (the training dataloader)
+        - val_dataloader (the validation dataloader(s))
+        - test_dataloader (the test dataloader(s))
+    This allows you to share a full dataset without explaining how to download,
+    split, transform and process the data.
+    Read the docs:
+        https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
+    """
+
+    def __init__(
+        self,
+        num_workers: int = 1,
+        pin_memory: bool = True,
+        ir_dataset_input_filename = None,
+        dataset_input_filename = None,
+        lp_output_filename = None,
+        dataset_output_filename = None,
+        batch_size = 32,
+        image_shape = (64,64),
+        normalize_data=False,
+    ):
+        """
+        fake_data: random data is created and used instead. This is useful for testing
+        """
+        super().__init__()
+
+        self.num_workers = num_workers
+        self.pin_memory = pin_memory
+        self.batch_size = batch_size
+        
+        self.dataloader_config = dict(
+            pin_memory=self.pin_memory,
+            num_workers=self.num_workers,
+            prefetch_factor=8,
+            persistent_workers=True,
+            # Disable automatic batching because dataset
+            # returns complete batches.
+            batch_size=None,
+        )  
+        # dataset = 'train'
+        # train_ir_dataset_input_filename = "temp/{}_ir.h5".format(dataset)
+        # train_dataset_input_filename = "temp/{}_input.h5".format(dataset)
+        # train_lp_output_filename = "temp/{}_lp_output.h5".format(dataset)
+        # train_dataset_output_filename = "temp/{}_output.h5".format(dataset)
+        
+        # self.train_dataset = ImergGhanaDatasetLP(ir_input_dataset = train_ir_dataset_input_filename,
+        #                                          input_filename = train_dataset_input_filename , 
+        #                                          lp_filename = train_lp_output_filename, 
+        #                                          output_filename = train_dataset_output_filename,
+        #                                          dataset_type = dataset)
+        
+        dataset = 'val'
+        val_ir_dataset_input_filename = "temp/{}_ir.h5".format(dataset)
+        val_dataset_input_filename = "temp/{}_input.h5".format(dataset)
+        val_lp_output_filename = "temp/{}_lp_output.h5".format(dataset)
+        val_dataset_output_filename = "temp/{}_output.h5".format(dataset)
+
+        self.val_dataset = ImergGhanaDatasetLP(ir_input_dataset = val_ir_dataset_input_filename,
+                                                 input_filename = val_dataset_input_filename , 
+                                                 lp_filename = val_lp_output_filename, 
+                                                 output_filename = val_dataset_output_filename,
+                                                 dataset_type=dataset)
+    
+        dataset = 'test'
+        test_ir_dataset_input_filename = "temp/{}_ir.h5".format(dataset)
+        test_dataset_input_filename = "temp/{}_input.h5".format(dataset)
+        test_lp_output_filename = "temp/{}_lp_output.h5".format(dataset)
+        test_dataset_output_filename = "temp/{}_output.h5".format(dataset)
+
+        self.test_dataset = ImergGhanaDatasetLP(ir_input_dataset = test_ir_dataset_input_filename,
+                                                 input_filename = test_dataset_input_filename , 
+                                                 lp_filename = test_lp_output_filename, 
+                                                 output_filename = test_dataset_output_filename,
+                                                 dataset_type=dataset)
+    
+        
+        
+    def train_dataloader(self):
+        dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=2)
+        return dataloader
+
+    def val_dataloader(self):
+        dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=2)
+        return dataloader
+
+    def test_dataloader(self):
+        dataloader = DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=2)
+        return dataloader
     
     
+    def event_dataloader(self):
+        dataloader = DataLoader(self.dataset, batch_size=self.batch_size, num_workers=2)
+        return dataloader

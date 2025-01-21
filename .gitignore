@@ -178,5 +178,11 @@ cython_debug/
 #.idea/
 
 
-data/
-examples/temp/
+data/*
+servir/__pycache__
+servir_nowcasting_examples/temp/*
+servir_nowcasting_examples/__pycache__
+servir_nowcasting_examples/results/*
+servir_nowcasting_examples/slurm_outputs/*
+servir_nowcasting_examples/servir.egg-info/
+

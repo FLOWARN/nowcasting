@@ -6,7 +6,7 @@ from pysteps import nowcasts
 from pysteps import motion
 from pysteps.motion.lucaskanade import dense_lucaskanade
 
-def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False, n_ens_members = 20, return_output=True, kmperpixel=None):
+def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False, n_ens_members = 20, return_output=True):
 
     # Estimate the motion field
     V = dense_lucaskanade(in_precip)
@@ -14,7 +14,7 @@ def linda(in_precip,timesteps, max_num_features = 15, add_perturbations=False, n
     
     # The linda nowcast
     forecast = nowcast_method(in_precip, V, timesteps, max_num_features=max_num_features, add_perturbations=add_perturbations, n_ens_members = n_ens_members, return_output=return_output, vel_pert_method=None)
-
+    
     if return_output:
         return forecast
     else:
@@ -40,7 +40,7 @@ def steps(in_precip, timesteps, n_ens_members = 20, n_cascade_levels=6, return_o
     R_forecast = transformation.dB_transform(R_forcast, threshold=-10.0, inverse=True)[0]
 
     if return_output:
-        return R_forecast
+        return np.nanmean(R_forcast, axis=0)
     else:
         # the ensemble mean
         R_f_mean = np.nanmean(R_forcast, axis=0)
@@ -49,7 +49,6 @@ def steps(in_precip, timesteps, n_ens_members = 20, n_cascade_levels=6, return_o
 
 
 def langragian_persistance(in_precip, timesteps):
-    
     R_train, _ = transformation.dB_transform(in_precip, threshold=0.1, zerovalue=-15.0)
 
     # Estimate the motion field with Lucas-Kanade

@@ -1,4 +1,3 @@
-    
 from servir.core.model_picker import ModelPicker
 from pysteps.verification.probscores import CRPS
 import numpy as np
@@ -7,7 +6,6 @@ import json
 from servir.core.data_provider import IMERGDataModule
 from pysteps.utils.spectral import rapsd
 from pysteps.verification.detcatscores import det_cat_fct
-
 
 # h5_dataset_location = "../data/events/5.h5"
 h5_dataset_location = "temp/ghana_imerg_2011_2020_Oct.h5"
@@ -22,21 +20,20 @@ get_crps = False
 # model_save_location = None
 # use_gpu = False
 
-
 # model_type = 'linda'
 # model_config_location = 'configs/gh_imerg/LINDA.py'
 # model_save_location = None
 # use_gpu = False
 
-# model_type = 'dgmr'
-# model_config_location = 'configs/gh_imerg/DGMR.py'
-# model_save_location = 'temp/DGMR-epoch=39.ckpt'
-# use_gpu = True
-
-model_type = 'dgmr_ir'
+model_type = 'dgmr'
 model_config_location = 'configs/gh_imerg/DGMR.py'
-model_save_location = 'temp/DGMR_IR-epoch=17.ckpt'
+model_save_location = 'temp/DGMR-epoch=39.ckpt'
 use_gpu = True
+
+# model_type = 'dgmr_ir'
+# model_config_location = 'configs/gh_imerg/DGMR.py'
+# model_save_location = 'temp/DGMR_IRLD2-epoch=12.ckpt'
+# use_gpu = True
 
 
 with open(metadata_location) as jsonfile:
@@ -60,16 +57,17 @@ crps_dict = {'dgmr':{},
              'dgmr_ir':{},
              'steps':{},
             }
+
 psd_dict = {'dgmr':{},
              'dgmr_ir':{},
              'steps':{},
+             'gt':{}
             }
+
 csi_dict = {'dgmr':{},
              'dgmr_ir':{},
              'steps':{},
             }
-
-
 
 for j in range(12):
     crps_dict['dgmr'][str(j)] = []
@@ -79,13 +77,13 @@ for j in range(12):
     psd_dict['dgmr'][str(j)] = []
     psd_dict['dgmr_ir'][str(j)] = []
     psd_dict['steps'][str(j)] = []
+    psd_dict['gt'][str(j)] = []
+    
     
     csi_dict['dgmr'][str(j)] = []
     csi_dict['dgmr_ir'][str(j)] = []
     csi_dict['steps'][str(j)] = []    
     
-
-
 
 if get_crps:
     model_picker = ModelPicker(model_type, model_config_location, model_save_location, use_gpu)
@@ -142,7 +140,9 @@ for index, data_sample_batch in enumerate(data_loader):
                 predicted_output = np.nan_to_num(model_picker.predict(x[data_sample_index]))
                 for j in range(12):
                     csi_dict[model_type][str(j)].append(det_cat_fct(predicted_output[0,0:j,: ], y[data_sample_index][0:j], thr=thr)['CSI'])
-                    psd_dict[model_type][str(j)].append(rapsd(predicted_output[0,j,:]))
+                    psd_dict[model_type][str(j)].append(rapsd(predicted_output[0,j,:], return_freq=True, fft_method = np.fft))
+                    psd_dict['gt'][str(j)].append(rapsd(y[data_sample_index][0:j], return_freq=True, fft_method = np.fft))
+                    
             except:
                 errored_out += 1
     elif model_type in ['dgmr']:
@@ -154,7 +154,9 @@ for index, data_sample_batch in enumerate(data_loader):
             output = rearanged_output[data_sample_index]
             for j in range(12):
                 csi_dict[model_type][str(j)].append(det_cat_fct(output[0][0:j,:,:], y.numpy()[:,:,0,:,:][data_sample_index][0:j,:,:], thr=thr))
-                psd_dict[model_type][str(j)].append(rapsd(output[0][j]))
+                psd_dict[model_type][str(j)].append(rapsd(output[0][j],return_freq=True, fft_method = np.fft))
+                psd_dict['gt'][str(j)].append(rapsd(y.numpy()[:,:,0,:,:][data_sample_index][j,:,:],return_freq=True, fft_method = np.fft))
+                
     elif model_type in ['dgmr_ir']:
         predicted_output = torch.tensor(model_picker.predict(x, x_ir))
         print(predicted_output.shape)
@@ -164,9 +166,11 @@ for index, data_sample_batch in enumerate(data_loader):
             output = rearanged_output[data_sample_index]
             for j in range(12):
                 csi_dict[model_type][str(j)].append(det_cat_fct(output[0][0:j,:,:], y.numpy()[:,:,0,:,:][data_sample_index][0:j,:,:], thr=thr))
-                psd_dict[model_type][str(j)].append(rapsd(output[0][j]))
-    
+                psd_dict[model_type][str(j)].append(rapsd(output[0][j], return_freq=True, fft_method = np.fft))
+                psd_dict['gt'][str(j)].append(rapsd(y.numpy()[:,:,0,:,:][data_sample_index][j,:,:], return_freq=True, fft_method = np.fft))
+
 
 np.save(model_type + '_rapsd.npy',psd_dict[model_type])
+np.save('gt_rapsd.npy',psd_dict['gt'])
 np.save(model_type + '_' +str(thr) + '_csi.npy',csi_dict[model_type])
 print("total errored out = ", errored_out)

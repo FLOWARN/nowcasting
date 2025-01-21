@@ -19,6 +19,8 @@ from servir.methods.dgmr_ir.losses import (
     CRPS
 )
 
+
+
 class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
     """Deep Generative Model of Radar"""
 
@@ -101,16 +103,15 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             input_channels=input_channels,
             conv_type=conv_type,
             output_channels=self.context_channels,
-            num_context_steps=num_history_steps,
+            num_context_steps=num_history_steps + 16,
         )
         
-        self.conditioning_stack_ir = ContextConditioningStack(
-            input_channels=input_channels,
-            conv_type=conv_type,
-            output_channels=self.context_channels,
-            num_context_steps = 16
-        )
-        
+        # self.conditioning_stack_ir = ContextConditioningStack(
+        #     input_channels=input_channels,
+        #     conv_type=conv_type,
+        #     output_channels=self.context_channels,
+        #     num_context_steps = 16
+        # )
         
         self.latent_stack = LatentConditioningStack(
             shape=(8 * self.input_channels, output_shape[0] // 32, output_shape[1] // 32),
@@ -121,9 +122,10 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             forecast_steps=forecast_steps,
             latent_channels=self.latent_channels,
             context_channels=self.context_channels,
+            sample_ir=False
         )
         
-        self.generator = Generator(self.conditioning_stack, self.conditioning_stack_ir,self.latent_stack, self.sampler)
+        self.generator = Generator(self.conditioning_stack, None,self.latent_stack, self.sampler)
         self.discriminator = Discriminator(input_channels, num_layers = self.num_layers)
         self.save_hyperparameters()
 
@@ -382,3 +384,4 @@ class DGMR_IR(pl.LightningModule, NowcastingModelHubMixin):
             tensorboard.add_image(
                 f"{step}/Generated_Image_Frame_{i}", image_grid, global_step=batch_idx
             )
+            
