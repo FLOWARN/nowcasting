@@ -7,23 +7,23 @@ The following are the steps to install the required libraries to run the Jupyter
 1.	Clone the GitHub repository from the following link: https://github.com/FLOWARN/nowcasting.git 
 2. Change directory
 
-'''
+```
 cd nowcasting/
-'''
+```
 
 3.	Create conda environment from the tito_env.yml file.
-'''
+```
 conda env create -f tito_env.yml   
-'''
+```
 4.	Install the servir package locally
-'''
+```
 pip install -e .
-'''
+```
 
 5.	Change into the servir_nowcasting_examples/ directory
-'''
+```
 cd servir_nowcasting_examples/
-'''
+```
 6.	Create `temp` and `data`  folder as it is present in the google drive: https://drive.google.com/drive/folders/1dWK8wDNKB3XwRuW6mNX22KHI1hyPH6uQ?usp=sharing 
 
 7.	Create an empty directory called `results`.
