@@ -29,9 +29,9 @@ pip install -e .
 ```
 cd servir_nowcasting_examples/
 ```
-7.	Create `temp` and `data`  folder as it is present in the google drive: https://drive.google.com/drive/folders/1dWK8wDNKB3XwRuW6mNX22KHI1hyPH6uQ?usp=sharing 
+7.	Create `temp` in `servir_nowcasting_examples/` and `data` in the `nowcasting` folder as it is present in the google drive: https://drive.google.com/drive/folders/1dWK8wDNKB3XwRuW6mNX22KHI1hyPH6uQ?usp=sharing 
 
-8.	Create an empty directory called `results`.
+8.	Create an empty directory called `results` in `servir_nowcasting_folder`.
 
 
 After following these steps, the user should be in a position to run all the notebooks present in `servir_nowcasting_examples`
