@@ -3,8 +3,6 @@
 
 #SBATCH --job-name dgmr_evaluation
 
-
-
 #SBATCH --partition=SOE_main
 #SBATCH --cpus-per-task=1            # Cores per task (>1 if multithread tasks)
 #SBATCH --mem=56000                  # Real memory (RAM) required (MB)

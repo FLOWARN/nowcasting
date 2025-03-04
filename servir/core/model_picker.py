@@ -186,19 +186,32 @@ class ModelPicker:
             
             print("training convlstm")
     
-    def save_output(self, output_h5_filename, output_precipitation):
+    def save_output(self, output_h5_filename, output_precipitation, num_predictions):
         
         output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=30*(k+1)) for k in range(self.config['out_seq_length'])]
         output_dt_str = [x.strftime('%Y-%m-%d %H:%M:%S') for x in output_dt]
-
+        if num_predictions == 1:
+            output_precipitation = output_precipitation[None, :, :, :]
         # delete any existing file
         if os.path.isfile(output_h5_filename):
             with h5py.File(output_h5_filename,  "a") as f:
-                del f['precipitations']
-                del f['timestamps']
+                for index, prediction in enumerate(output_precipitation):
+                    if num_predictions == 1:
+                        del f['precipitations']
+                        del f['timestamps']
+                    else:
+                        del f[str(index) +'precipitations']
+                        del f[str(index) +'timestamps']
                 
 
         # save results to h5py file
         with h5py.File(output_h5_filename,'w') as hf:
-            hf.create_dataset('precipitations', data=output_precipitation)
-            hf.create_dataset('timestamps', data=output_dt_str)
+            print(output_precipitation.shape)
+            for index, prediction in enumerate(output_precipitation):
+                # hf.create_dataset(str(index + 1), data = {'precipitations': prediction, 'timestamps': output_dt_str})
+                if num_predictions == 1:
+                    hf.create_dataset('precipitations', data=prediction)
+                    hf.create_dataset('timestamps', data=output_dt_str)  
+                else:                  
+                    hf.create_dataset(str(index) + 'precipitations', data=prediction)
+                    hf.create_dataset(str(index) + 'timestamps', data=output_dt_str)

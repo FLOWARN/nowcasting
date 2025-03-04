@@ -32,6 +32,19 @@ import matplotlib.pyplot as plt
 import time
 import pandas as pd
 
+
+def downloadIRData(start_date, end_date):
+    pass
+    # make sure that eumdac and datatailor are installed in the linux environment
+
+    # eumdac download -c EO:EUM:DAT:MSG:HRSEVIRI -s 2020-07-01T00:00
+    # -e 2020-08-01T00:00 --tailor "product: HRSEVIRI, format: netcdf4, projection: geographic, roi: {NSWE: [33.5, -3, -21.5, 30.5]}, 
+    # filter:{ bands : [channel_9]}" -o D:\IR_nc\2020-01
+    
+    # command = 'eumdac download -c EO:EUM:DAT:MSG:HRSEVIRI -s '+ start_date + ' -e ' + end_date + '--tailor "product: HRSEVIRI, format: netcdf4, projection: geographic, roi: {NSWE: [33.5, -3, -21.5, 30.5]},filter:{ bands : [channel_9]}" -o D:\IR_nc\'
+    
+
+
 def ReadandWarp(gridFile,xmin,ymin,xmax,ymax, req_height, req_width, morph_size):
 
     #Read grid and warp to domain grid
@@ -180,7 +193,7 @@ def get_event(csv_filename, event_id=1):
     day = int(date_string.split(' ')[1][:-1])
     year = int(date_string.split(' ')[-1])
     event_date = datetime.datetime(year, month_converter(month), day, 0, 0, 0)
-    start_date = event_date
+    start_date = event_date - timedelta(days=1)
     
     end_date = event_date + timedelta(days=1)
     return start_date, end_date
@@ -205,8 +218,8 @@ xmax = 30.4
 ymin = -2.9
 ymax = 33.1
 
+req_shape = (360, 518)
 
-req_shape = (360, 516)
 # Domain coordinates for Ghana 
 # xmin = -3.5416666669999999
 # xmax = 1.6666666669999999

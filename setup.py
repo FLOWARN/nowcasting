@@ -11,6 +11,6 @@ setup(name='servir',
       author_email="",
       packages=['servir', 'servir_data_utils', 'servir_nowcasting_examples'],
       package_dir={'servir': '/',
-                   'servir_data_utils': '',
-                   'servir_nowcasting_examples':''},
+                   'servir_data_utils': '/',
+                   'servir_nowcasting_examples':'/'},
       python_requires='>=3.12')
