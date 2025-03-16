@@ -185,18 +185,44 @@ def month_converter(month):
     months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     return months.index(month) + 1
 
-def get_event(csv_filename, event_id=1):
+def get_event(csv_filename, event_id=1, start_hour =0, start_minute=0, end_hour=0, end_minute=0):
     events_df = pd.read_csv(csv_filename)
     # events_df['Event  Recorded'] = pd.to_datetime(events_df['Event  Recorded'], format='mixed')
     date_string = events_df['Event  Recorded Date'].values[0]
     month = date_string.split(' ')[0]
     day = int(date_string.split(' ')[1][:-1])
     year = int(date_string.split(' ')[-1])
-    event_date = datetime.datetime(year, month_converter(month), day, 0, 0, 0)
-    start_date = event_date - timedelta(days=1)
+    # event_date = datetime.datetime(year, month_converter(month), day, 0, 0, 0)
+    start_date = datetime.datetime(year, month_converter(month), day, start_hour, start_minute, 0)
     
-    end_date = event_date + timedelta(days=1)
+    # end_date = event_date + timedelta(days=1)
+    end_date = datetime.datetime(year, month_converter(month), day, end_hour, end_minute, 0)
     return start_date, end_date
+
+
+def get_event_for_forecasting(start_date, end_date, event_label=1, start_hour =0, start_minute=0, end_hour=0, end_minute=0):
+    # events_df['Event  Recorded'] = pd.to_datetime(events_df['Event  Recorded'], format='mixed')
+    start_date_string = start_date
+    start_month = start_date.month
+    start_day = start_date.day
+    start_year = start_date.year
+    
+
+    
+    # event_date = datetime.datetime(year, month_converter(month), day, 0, 0, 0)
+    start_date = datetime.datetime(start_year,start_month, start_day, start_hour, start_minute, 0) - timedelta(minutes=30)
+    
+    end_date_string = end_date
+    end_month = end_date.month
+    end_day = end_date.day
+    end_year = end_date.year
+    
+    # event_date = datetime.datetime(year, month_converter(month), day, 0, 0, 0)
+    end_date = datetime.datetime(end_year, end_month, end_day, end_hour, end_minute, 0)
+    
+    return start_date, end_date
+
+
 
 def get_WA_dataset():
     

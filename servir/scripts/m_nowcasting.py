@@ -68,7 +68,7 @@ def nowcast(param_dict):
     model_picker.load_model(get_ensemble=False)
     
     predictions = model_picker.predict()
-    
+
     model_picker.save_output(output_h5_fname, predictions, num_predictions = 1)
 
 

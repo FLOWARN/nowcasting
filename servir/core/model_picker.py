@@ -118,6 +118,7 @@ class ModelPicker:
             with torch.no_grad():
                 pred_Y = self.prediction_function(input_precip[:,-self.config['in_seq_length']:,:,:,:], Y)
             # convert to numpy
+
             pred_Y = pred_Y.cpu().numpy()
             # reduce batch and channel dimension
             pred_Y = np.squeeze(pred_Y, axis=(0,2))
@@ -206,7 +207,6 @@ class ModelPicker:
 
         # save results to h5py file
         with h5py.File(output_h5_filename,'w') as hf:
-            print(output_precipitation.shape)
             for index, prediction in enumerate(output_precipitation):
                 # hf.create_dataset(str(index + 1), data = {'precipitations': prediction, 'timestamps': output_dt_str})
                 if num_predictions == 1:

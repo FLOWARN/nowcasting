@@ -275,13 +275,15 @@ class ImergGhanaMonthlyDataset(Dataset):
 
 
 class ImergWADataset(Dataset):
-    def __init__(self, imerg_filename, ir_filename,forecast_steps, history_steps, normalize_data=False, image_shape = (64,64)):
+    def __init__(self, imerg_filename, ir_filename,forecast_steps, history_steps, normalize_data=False, image_shape = (64,64),
+                 production_mode = False):
         super(ImergWADataset, self).__init__()
         self.imerg_filename = imerg_filename
         self.ir_filename = ir_filename
         self.normalize_data = normalize_data
         self.img_height = image_shape[0]
         self.img_width = image_shape[1]
+        self.production_mode = production_mode
 
 
         with h5py.File(self.imerg_filename, 'r') as hf:
@@ -306,13 +308,15 @@ class ImergWADataset(Dataset):
                                                     window_shape=history_steps, 
                                                     axis=0)[:-forecast_steps]
             
-            self.output_precipitation = sliding_window_view(precipitation_time_series[history_steps:],
-                                                        window_shape=forecast_steps, 
-                                                        axis=0)
-            self.output_timestamps = sliding_window_view(timestamps[history_steps:],
-                                                        window_shape=forecast_steps, 
-                                                        axis=0)
             
+            if not production_mode:
+                self.output_precipitation = sliding_window_view(precipitation_time_series[history_steps:],
+                                                            window_shape=forecast_steps, 
+                                                            axis=0)
+                self.output_timestamps = sliding_window_view(timestamps[history_steps:],
+                                                            window_shape=forecast_steps, 
+                                                            axis=0)
+                
             # reshape to DGMR expected input
             self.input_precipitation = np.transpose(self.input_precipitation, (0, 3, 1, 2))
             if self.normalize_data == True:
@@ -320,16 +324,17 @@ class ImergWADataset(Dataset):
                 self.input_precipitation = np.nan_to_num(self.input_precipitation, 0.)
             else:
                 self.input_precipitation = self.input_precipitation[:,:,None,:,:]
-            
-            self.output_precipitation = np.transpose(self.output_precipitation, (0, 3, 1, 2))
-            if self.normalize_data == True:
-                self.output_precipitation = (self.output_precipitation[:,:,None,:,:]-mean_imerg)/std_imerg
-                self.output_precipitation = np.nan_to_num(self.output_precipitation, 0.)
-            else:
-                self.output_precipitation = self.output_precipitation[:,:,None,:,:]
-            
             print("Precipitation Dataset input shape: ", self.input_precipitation.shape)
-            print("Precipitation Dataset output shape: ", self.output_precipitation.shape)
+            
+            if not production_mode:
+                self.output_precipitation = np.transpose(self.output_precipitation, (0, 3, 1, 2))
+                if self.normalize_data == True:
+                    self.output_precipitation = (self.output_precipitation[:,:,None,:,:]-mean_imerg)/std_imerg
+                    self.output_precipitation = np.nan_to_num(self.output_precipitation, 0.)
+                else:
+                    self.output_precipitation = self.output_precipitation[:,:,None,:,:]
+            
+                print("Precipitation Dataset output shape: ", self.output_precipitation.shape)
             
         # with h5py.File(self.ir_filename, 'r') as hf:
         #     IR_time_series = hf['IRs'][:].astype(np.float32)
@@ -397,10 +402,13 @@ class ImergWADataset(Dataset):
         return np.pad(input_array, pad_width, 'constant', constant_values=pad_value)
     
     def __getitem__(self, idx):
-        return self.input_precipitation[idx], self.output_precipitation[idx]
+        if self.production_mode:   
+            return self.input_precipitation[idx], _
+        else:
+            return self.input_precipitation[idx], self.output_precipitation[idx]
     
     def __len__(self):
-        return len(self.output_precipitation)
+        return len(self.input_precipitation)
     
     def get_input_timestamps(self):
         return self.input_timestamps
@@ -440,7 +448,8 @@ class IMERGDataModule(L.LightningDataModule):
         batch_size = 32,
         image_shape = (64,64),
         normalize_data=False,
-        dataset = None
+        dataset = None,
+        production_mode = False
     ):
         """
         fake_data: random data is created and used instead. This is useful for testing
@@ -515,7 +524,8 @@ class IMERGDataModule(L.LightningDataModule):
                                     forecast_steps, 
                                     history_steps,
                                     normalize_data=normalize_data,
-                                    image_shape=image_shape)
+                                    image_shape=image_shape,
+                                    production_mode = production_mode)
             self.val_dataset = self.train_dataset
             self.test_dataset = self.train_dataset
             

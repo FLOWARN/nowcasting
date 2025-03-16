@@ -21,7 +21,7 @@ import osgeo.gdal as gdal
 # tif_directory = '/home/cc/projects/nowcasting/temp/'
 
 
-def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions):
+def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method):
     def get_EF5_geotiff_metadata(meta_fname):
         with open(meta_fname, "r") as outfile:
             meta = json.load(outfile)
@@ -60,20 +60,21 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions):
                 output_dts = hf[str(index) + 'timestamps'][:]
             output_dts = np.array([datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S') for x in output_dts])
 
-            pred_imgs = np.insert(pred_imgs, 0, 0, axis=2)
-            pred_imgs = np.insert(pred_imgs, -1, 0, axis=2)
+            if method == 'convlstm':
+                pred_imgs = np.insert(pred_imgs, 0, 0, axis=2)
+                pred_imgs = np.insert(pred_imgs, -1, 0, axis=2)
 
-            os.makedirs(tif_directory + str(index)+'/', exist_ok=True)
-    
+            
 
             for i in range(len(output_dts)):
                 dt_str = output_dts[i].strftime('%Y%m%d%H%M')
                 if num_predictions == 1:
                     gridOutName = os.path.join(tif_directory, f"imerg.qpf.{dt_str}.30minAccum.tif")
                 else:
+                    os.makedirs(tif_directory + str(index)+'/', exist_ok=True)
                     gridOutName = os.path.join(tif_directory+ str(index)+'/', f"imerg.qpf.{dt_str}.30minAccum.tif")
-                print(pred_imgs[i].shape)
                 WriteGrid(gridOutName, pred_imgs[i], nx, ny, gt, proj)
+                
 
 
 if __name__ == "__main__":

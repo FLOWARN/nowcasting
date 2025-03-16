@@ -53,7 +53,6 @@ def generate_outputs(data_loader, model_type, model_config_location, model_save_
     model_picker = ModelPicker(model_type, model_config_location,model_save_location, use_gpu)
     model_picker.load_model(get_ensemble=False)
     errored_out = 0
-
     for index, data_sample_batch in enumerate(data_loader):
         x, y = data_sample_batch
         print("starting predictions for batch {}".format(index))

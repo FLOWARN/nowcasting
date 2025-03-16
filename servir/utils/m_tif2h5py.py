@@ -28,7 +28,7 @@ Returns:
 """
 
 
-def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2):
+def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2, last_only=None):
     filename_extension = 'tif'
 
 
@@ -76,8 +76,6 @@ def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2):
     
     
     
-    
-    
     with open(meta_fname, 'w') as fp:
         json.dump(metadata_dict, fp)
     
@@ -89,6 +87,12 @@ def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2):
     sorted_timestamps = times[sorted_index_array]
     sorted_precipitation = precipitation[sorted_index_array]
     
+    if last_only is not None:
+        sorted_timestamps = sorted_timestamps[-last_only:]
+        sorted_precipitation = sorted_precipitation[-last_only:, :, :]
+
+        # sorted_timestamps = sorted_timestamps[]
+        # sorted_precipitation = sorted_precipitation[last_only]
     
     # cut off 2 columns of data
     # sorted_precipitation = sorted_precipitation[:, :, 1:-1]
