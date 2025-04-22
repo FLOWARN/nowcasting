@@ -14,7 +14,7 @@ import numpy as np
 from servir.utils.m_tif2h5py import tif2h5py
 
 
-def clipper(input_tiff_dir, final_output_dir, input_raw_data_dir):
+def clipper(input_tiff_dir, final_output_dir, input_raw_data_dir,event_id = 'PDIR_data'):
     crop_xmin = -21.4
     crop_xmax = 30.4
     crop_ymin = -2.9
@@ -70,8 +70,12 @@ def clipper(input_tiff_dir, final_output_dir, input_raw_data_dir):
     print("------FILES CLIPPED----------")
     
     meta_fname = 'PDIR_metadata.json'
-    event_id = 'PDIR_data'
-    tif2h5py(tif_directory=final_output_dir, h5_fname= "/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/data/events/"+ str(event_id)+'.h5', meta_fname=meta_fname, x1=crop_xmin, y1=crop_ymin, x2=crop_xmax, y2=crop_ymax)
+    
+    tif2h5py(tif_directory=final_output_dir, 
+             h5_fname= "/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/data/events/"+ str(event_id)+'.h5', 
+             meta_fname=meta_fname, 
+             x1=crop_xmin, y1=crop_ymin, 
+             x2=crop_xmax, y2=crop_ymax)
 
     
     print("------h5 FILE PRODUCED----------")
@@ -138,7 +142,7 @@ def converter(input_dir, output_dir):
     print("_____CONVERTED TO TIFF______")
 
 
-def download_files(input_date_str, save_dir , input_tiff_dir, output_tiff_dir_name):
+def download_files(input_date_str, save_dir , input_tiff_dir, output_tiff_dir_name, event_id):
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -150,7 +154,7 @@ def download_files(input_date_str, save_dir , input_tiff_dir, output_tiff_dir_na
     input_dt = datetime.strptime(input_date_str, "%Y-%m-%d:%H")
 
     # Define the download interval:
-    start_dt = input_dt - timedelta(hours=9)  # start date is  9 hours before
+    start_dt = input_dt - timedelta(hours=8)  # start date is  8 hours before
     end_dt   = input_dt - timedelta(hours=1)  # end 1 hour back from input date
 
     # --------------------------
@@ -233,7 +237,7 @@ def download_files(input_date_str, save_dir , input_tiff_dir, output_tiff_dir_na
     # subprocess.run(["python", "clipper.py"], check=True)
     # print("clipper.py executed.")
 
-    clipper(input_tiff_dir = input_tiff_dir, final_output_dir = output_tiff_dir_name, input_raw_data_dir = save_dir)
+    clipper(input_tiff_dir = input_tiff_dir, final_output_dir = output_tiff_dir_name, input_raw_data_dir = save_dir, event_id=event_id)
 
 
     print("All processing complete. Folders have been removed.")
@@ -252,7 +256,7 @@ def main():
     final_save_output_folder = initialize_event_folders(folder_name = save_dir,event_id = output_tiff_dir_name )
 
     download_files(input_date_str = "2021-01-01:00", save_dir = final_save_input_folder, input_tiff_dir = final_save_input_tiff_folder,
-                   output_tiff_dir_name = final_save_output_folder)
+                   output_tiff_dir_name = final_save_output_folder, event_id="PDIR_data")
 
 
 if __name__ == "__main__":

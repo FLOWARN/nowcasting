@@ -187,9 +187,13 @@ class ModelPicker:
             
             print("training convlstm")
     
-    def save_output(self, output_h5_filename, output_precipitation, num_predictions):
-        
-        output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=30*(k+1)) for k in range(self.config['out_seq_length'])]
+    def save_output(self, output_h5_filename, output_precipitation, num_predictions, dataset = 'IMERG'):
+        if dataset == 'IMERG':
+            output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=30*(k+1)) for k in range(self.config['out_seq_length'])]
+        elif dataset == 'PDIR':
+            output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=60*(k+1)) for k in range(self.config['out_seq_length'])]
+        else:
+            raise Exception('Wrong dataset name')
         output_dt_str = [x.strftime('%Y-%m-%d %H:%M:%S') for x in output_dt]
         if num_predictions == 1:
             output_precipitation = output_precipitation[None, :, :, :]

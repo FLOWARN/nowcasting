@@ -21,7 +21,7 @@ import osgeo.gdal as gdal
 # tif_directory = '/home/cc/projects/nowcasting/temp/'
 
 
-def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method):
+def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, dataset = 'IMERG'):
     def get_EF5_geotiff_metadata(meta_fname):
         with open(meta_fname, "r") as outfile:
             meta = json.load(outfile)
@@ -47,13 +47,13 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method):
 
     nx, ny, gt, proj = get_EF5_geotiff_metadata(meta_fname)
 
-    os.makedirs(tif_directory, exist_ok=True)
+    os.makedirs(tif_directory + method, exist_ok=True)
     
     # Load the predictions
     with h5py.File(h5_fname, 'r') as hf:
         for index in range(num_predictions):
             if num_predictions == 1:
-                pred_imgs = hf['precipitations'][:]
+                pred_imgs = hf['precipitations'][:][0]
                 output_dts = hf['timestamps'][:]
             else:
                 pred_imgs = hf[str(index) + 'precipitations'][:]
@@ -65,14 +65,19 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method):
                 pred_imgs = np.insert(pred_imgs, -1, 0, axis=2)
 
             
-
+            if dataset == 'IMERG':
+                filename_qualifier = 'imerg.qpf.'
+                filename_end = '.30minAccum'
+            elif dataset == 'PDIR':
+                filename_qualifier = 'PDIR.qpf.'
+                filename_end = '.60minAccum'
             for i in range(len(output_dts)):
                 dt_str = output_dts[i].strftime('%Y%m%d%H%M')
                 if num_predictions == 1:
-                    gridOutName = os.path.join(tif_directory, f"imerg.qpf.{dt_str}.30minAccum.tif")
+                    gridOutName = os.path.join(tif_directory + method, f"{filename_qualifier}{dt_str}{filename_end}.tif")
                 else:
-                    os.makedirs(tif_directory + str(index)+'/', exist_ok=True)
-                    gridOutName = os.path.join(tif_directory+ str(index)+'/', f"imerg.qpf.{dt_str}.30minAccum.tif")
+                    os.makedirs(tif_directory + method + str(index)+'/', exist_ok=True)
+                    gridOutName = os.path.join(tif_directory + method+ str(index)+'/', f"{filename_qualifier}{dt_str}{filename_end}.tif")
                 WriteGrid(gridOutName, pred_imgs[i], nx, ny, gt, proj)
                 
 

@@ -272,11 +272,9 @@ class ImergGhanaMonthlyDataset(Dataset):
     def __len__(self):
         return len(self.output_precipitation)
 
-
-
 class ImergWADataset(Dataset):
     def __init__(self, imerg_filename, ir_filename,forecast_steps, history_steps, normalize_data=False, image_shape = (64,64),
-                 production_mode = False):
+                 production_mode = False, mode = None):
         super(ImergWADataset, self).__init__()
         self.imerg_filename = imerg_filename
         self.ir_filename = ir_filename
@@ -284,39 +282,62 @@ class ImergWADataset(Dataset):
         self.img_height = image_shape[0]
         self.img_width = image_shape[1]
         self.production_mode = production_mode
+        self.mode = mode
+        if self.ir_filename is not None:
+            self.user_IR = True
+        else:
+            self.user_IR = False
 
-
+        # imerg_correction = 2
         with h5py.File(self.imerg_filename, 'r') as hf:
             precipitation_time_series = hf['precipitations'][:].astype(np.float32)
             timestamps = hf['timestamps'][:]
+            
             # crop the image to the desired shape(center crop)
+            # if self.img_height != precipitation_time_series.shape[1]:
+            #     h_start = (precipitation_time_series.shape[1] - self.img_height) // 2
+            #     precipitation_time_series = precipitation_time_series[:, h_start:h_start+self.img_height, :]
             
-            if self.img_height != precipitation_time_series.shape[1]:
-                h_start = (precipitation_time_series.shape[1] - self.img_height) // 2
-                precipitation_time_series = precipitation_time_series[:, h_start:h_start+self.img_height, :]
-            
-            if self.img_width != precipitation_time_series.shape[2]:
-                w_start = (precipitation_time_series.shape[2] - self.img_width) // 2
-                precipitation_time_series = precipitation_time_series[:, :, w_start:w_start+self.img_width]
+            # if self.img_width != precipitation_time_series.shape[2]:
+            #     w_start = (precipitation_time_series.shape[2] - self.img_width) // 2
+            #     precipitation_time_series = precipitation_time_series[:, :, w_start:w_start+self.img_width]
             mean_imerg = hf['mean'][()]
             std_imerg = hf['std'][()]
             print("original shape", precipitation_time_series.shape)
+            
+            
             self.input_precipitation = sliding_window_view(precipitation_time_series,
                                                     window_shape=history_steps, 
                                                     axis=0)[:-forecast_steps]
+            
             self.input_timestamps = sliding_window_view(timestamps,
                                                     window_shape=history_steps, 
                                                     axis=0)[:-forecast_steps]
             
-            
             if not production_mode:
+                self.input_precipitation = sliding_window_view(precipitation_time_series,
+                                                    window_shape=history_steps, 
+                                                    axis=0)[:-forecast_steps]
+            
+                self.input_timestamps = sliding_window_view(timestamps,
+                                                    window_shape=history_steps, 
+                                                    axis=0)[:-forecast_steps]
+            
                 self.output_precipitation = sliding_window_view(precipitation_time_series[history_steps:],
                                                             window_shape=forecast_steps, 
                                                             axis=0)
                 self.output_timestamps = sliding_window_view(timestamps[history_steps:],
                                                             window_shape=forecast_steps, 
                                                             axis=0)
-                
+            else:
+                self.input_precipitation = sliding_window_view(precipitation_time_series,
+                                                    window_shape=history_steps, 
+                                                    axis=0)
+            
+                self.input_timestamps = sliding_window_view(timestamps,
+                                                    window_shape=history_steps, 
+                                                    axis=0)
+            
             # reshape to DGMR expected input
             self.input_precipitation = np.transpose(self.input_precipitation, (0, 3, 1, 2))
             if self.normalize_data == True:
@@ -324,7 +345,6 @@ class ImergWADataset(Dataset):
                 self.input_precipitation = np.nan_to_num(self.input_precipitation, 0.)
             else:
                 self.input_precipitation = self.input_precipitation[:,:,None,:,:]
-            print("Precipitation Dataset input shape: ", self.input_precipitation.shape)
             
             if not production_mode:
                 self.output_precipitation = np.transpose(self.output_precipitation, (0, 3, 1, 2))
@@ -333,58 +353,120 @@ class ImergWADataset(Dataset):
                     self.output_precipitation = np.nan_to_num(self.output_precipitation, 0.)
                 else:
                     self.output_precipitation = self.output_precipitation[:,:,None,:,:]
-            
-                print("Precipitation Dataset output shape: ", self.output_precipitation.shape)
-            
-        # with h5py.File(self.ir_filename, 'r') as hf:
-        #     IR_time_series = hf['IRs'][:].astype(np.float32)
-        #     mean_ir = hf['mean'][()]
-        #     std_ir = hf['std'][()]
-            
-        #     if self.img_height != IR_time_series.shape[1]:
-        #         h_start = (IR_time_series.shape[1] - self.img_height) // 2
-        #         IR_time_series = IR_time_series[:, h_start:h_start+self.img_height, :]
-            
-        #     if self.img_width != IR_time_series.shape[2]:
-        #         w_start = (IR_time_series.shape[2] - self.img_width) // 2
-        #         IR_time_series = IR_time_series[:, :, w_start:w_start+self.img_width]
-
-        #     print("IR original shape", IR_time_series.shape)
-        #     history_steps_IR =history_steps*2
-        #     forecast_steps_IR = forecast_steps*2
-            
-        #     input_IR_sample = sliding_window_view(IR_time_series,
-        #                                             window_shape=history_steps_IR, 
-        #                                             axis=0)
-            
-        #     input_IR_sample = input_IR_sample[:-forecast_steps_IR][::2]
-        #     output_IR_sample = sliding_window_view(IR_time_series[history_steps_IR:],
-        #                                             window_shape=forecast_steps_IR, 
-        #                                                 axis=0)[::2]
-        #     # move 9 images from output IR to input IR (since we have up to 1 15h of IR in the past)
-        #     print(input_IR_sample.shape)
-        #     print(output_IR_sample.shape)
-            
-        #     self.input_IR = np.concatenate((input_IR_sample, output_IR_sample[:,:,:,0:9]), axis=3)
-        #     self.output_IR = output_IR_sample[:,:,:,9:]
         
-        #     # reshape to DGMR expected input
-        #     self.input_IR = np.transpose(self.input_IR, (0, 3, 1, 2))
-        #     if self.normalize_data == True:
-        #         self.input_IR = (self.input_IR[:,-16:,None,:,:]-mean_ir)/std_ir
-        #         self.input_IR = np.nan_to_num(self.input_IR, 0.)
-        #     else:
-        #         self.input_IR = self.input_IR[:,-16:,None,:,:]
-            
-        #     self.output_IR = np.transpose(self.output_IR, (0, 3, 1, 2))
-        #     if self.normalize_data == True:
-        #         self.output_IR = (self.output_IR[:,:,None,:,:]-mean_ir)/std_ir
-        #         self.output_IR = np.nan_to_num(self.output_IR, 0.)
-        #     else:
-        #         self.output_IR = self.output_IR[:,:,None,:,:]
+        if self.user_IR:
+            ir_correction = 1
+            with h5py.File(self.ir_filename, 'r') as hf:
+                IR_time_series = hf['precipitations'][:].astype(np.float32)[1:-ir_correction]
+                datetime_series = hf['timestamps'][:][1:-ir_correction]
                 
-        #     print("IR Dataset input shape: ", self.input_IR.shape)
-        #     print("IR Dataset output shape: ", self.output_IR.shape)
+                # mean_ir = hf['mean'][()]
+                # std_ir = hf['std'][()]
+                
+                if self.img_height != IR_time_series.shape[1]:
+                    h_start = (IR_time_series.shape[1] - self.img_height) // 2
+                    IR_time_series = IR_time_series[:, h_start:h_start+self.img_height, :]
+                
+                if self.img_width != IR_time_series.shape[2]:
+                    w_start = (IR_time_series.shape[2] - self.img_width) // 2
+                    IR_time_series = IR_time_series[:, :, w_start:w_start+self.img_width]
+
+                # print("IR original shape", IR_time_series.shape)
+                history_steps_IR = history_steps*2
+                forecast_steps_IR = forecast_steps*2
+                
+                input_IR_sample = sliding_window_view(IR_time_series,
+                                                        window_shape=history_steps_IR, 
+                                                        axis=0)
+                
+                input_IR_timestamps_sample = sliding_window_view(datetime_series,
+                                                        window_shape=history_steps_IR, 
+                                                        axis=0)
+                
+                input_IR_sample = input_IR_sample[:-forecast_steps_IR][::2]
+                input_IR_timestamps_sample = input_IR_timestamps_sample[:-forecast_steps_IR][::2]
+                
+                output_IR_sample = sliding_window_view(IR_time_series[history_steps_IR:],
+                                                        window_shape=forecast_steps_IR, 
+                                                            axis=0)[::2]
+                output_IR_timestamps_sample = sliding_window_view(datetime_series[history_steps_IR:],
+                                                        window_shape=forecast_steps_IR, 
+                                                            axis=0)[::2]
+                
+                # move 9 images from output IR to input IR (since we have up to 1 15h of IR in the past)
+                # print(input_IR_sample.shape)
+                # print(output_IR_sample.shape)
+                
+                self.input_IR = np.concatenate((input_IR_sample, output_IR_sample[:,:,:,0:9]), axis=3)
+                self.input_IR_timestamps_sample = np.concatenate((input_IR_timestamps_sample, output_IR_timestamps_sample[:,0:9]), axis=1)
+                
+                self.output_IR = output_IR_sample[:,:,:,9:]
+                self.output_IR_timestamps_sample = output_IR_timestamps_sample[:,9:]
+            
+                # reshape to DGMR expected input
+                self.input_IR = np.transpose(self.input_IR, (0, 3, 1, 2))
+                if self.normalize_data == True:
+                    self.input_IR = (self.input_IR[:,-16:,None,:,:]-mean_ir)/std_ir
+                    self.input_IR = np.nan_to_num(self.input_IR, 0.)
+                else:
+                    self.input_IR = self.input_IR[:,-16:,None,:,:]
+                
+                self.output_IR = np.transpose(self.output_IR, (0, 3, 1, 2))
+                
+                # normalize data and add an extra channel to incorporate neural network expected input
+                if self.normalize_data == True:
+                    self.output_IR = (self.output_IR[:,:,None,:,:]-mean_ir)/std_ir
+                    self.output_IR = np.nan_to_num(self.output_IR, 0.)
+                else:
+                    self.output_IR = self.output_IR[:,:,None,:,:]
+                    
+               
+                if self.mode is not None:
+                    total_length = len(self.input_precipitation)
+                    
+                    if self.mode == 0:
+                        self.input_IR = self.input_IR[0: int(total_length*0.8)]
+                        self.output_IR = self.output_IR[0: int(total_length*0.8)]
+
+                        
+                    elif self.mode == 1:
+                        self.input_IR = self.input_IR[int(total_length*0.8): int(total_length*0.9)]
+                        self.output_IR = self.output_IR[int(total_length*0.8): int(total_length*0.9)]
+
+                    elif self.mode == 2:
+                        self.input_IR = self.input_IR[int(total_length*0.9):]
+                        self.output_IR = self.output_IR[int(total_length*0.9):]
+                    else:
+                        raise Exception('Invalide mode, must be in [0,1,2]')
+                print("IR Dataset input shape: ", self.input_IR.shape)
+                print("IR Dataset output shape: ", self.output_IR.shape)
+                
+                
+        if self.mode is not None:
+            total_length = len(self.input_precipitation)
+            
+            if self.mode == 0:
+                self.input_precipitation = self.input_precipitation[0: int(total_length*0.8)]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[0: int(total_length*0.8)]
+    
+            elif self.mode == 1:
+                self.input_precipitation = self.input_precipitation[int(total_length*0.8): int(total_length*0.9)]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[int(total_length*0.8): int(total_length*0.9)]
+
+            elif self.mode == 2:
+                self.input_precipitation = self.input_precipitation[int(total_length*0.9):]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[int(total_length*0.9):]
+            else:
+                raise Exception('Invalide mode, must be in [0,1,2]')
+        
+        
+        print("Precipitation Dataset input shape: ", self.input_precipitation.shape)
+        if not production_mode:
+            print("Precipitation Dataset output shape: ", self.output_precipitation.shape)
+            
             
     # code obtained from https://stackoverflow.com/questions/19349410/how-to-pad-with-zeros-a-tensor-along-some-axis-python
     def symmetric_pad_array(self, input_array: np.ndarray, target_shape: tuple, pad_value: int) -> np.ndarray:
@@ -403,9 +485,233 @@ class ImergWADataset(Dataset):
     
     def __getitem__(self, idx):
         if self.production_mode:   
-            return self.input_precipitation[idx], _
+            if self.user_IR:
+                return self.input_precipitation[idx], self.input_precipitation[idx], self.input_IR[idx], self.input_IR[idx]
+            else:
+                return self.input_precipitation[idx], self.input_precipitation[idx]
         else:
-            return self.input_precipitation[idx], self.output_precipitation[idx]
+            if self.user_IR:
+                return self.input_precipitation[idx], self.output_precipitation[idx] , self.input_IR[idx], self.output_IR[idx]
+            else:
+                return self.input_precipitation[idx], self.output_precipitation[idx]
+    
+    def __len__(self):
+        return len(self.input_precipitation)
+    
+    def get_input_timestamps(self):
+        return self.input_timestamps
+    
+    def get_output_timestamps(self):
+        return self.output_timestamps
+    
+    def get_output_precipitation(self):
+        return self.output_precipitation[:,:,0,:,:]
+
+class ImergWAIRDataset(Dataset):
+    def __init__(self, imerg_filename, ir_filename,forecast_steps, history_steps, normalize_data=False, image_shape = (64,64),
+                 production_mode = False, mode = None):
+        super(ImergWAIRDataset, self).__init__()
+        self.imerg_filename = imerg_filename
+        self.ir_filename = ir_filename
+        self.normalize_data = normalize_data
+        self.img_height = image_shape[0]
+        self.img_width = image_shape[1]
+        self.production_mode = production_mode
+        self.mode = mode
+        if self.ir_filename is not None:
+            self.user_IR = True
+        else:
+            self.user_IR = False
+
+        imerg_correction = 2
+        with h5py.File(self.imerg_filename, 'r') as hf:
+            precipitation_time_series = hf['precipitations'][:].astype(np.float32)[:-imerg_correction]
+            timestamps = hf['timestamps'][:][:-imerg_correction]
+            
+            # crop the image to the desired shape(center crop)
+            if self.img_height != precipitation_time_series.shape[1]:
+                h_start = (precipitation_time_series.shape[1] - self.img_height) // 2
+                precipitation_time_series = precipitation_time_series[:, h_start:h_start+self.img_height, :]
+            
+            if self.img_width != precipitation_time_series.shape[2]:
+                w_start = (precipitation_time_series.shape[2] - self.img_width) // 2
+                precipitation_time_series = precipitation_time_series[:, :, w_start:w_start+self.img_width]
+            mean_imerg = hf['mean'][()]
+            std_imerg = hf['std'][()]
+            print("original shape", precipitation_time_series.shape)
+            self.input_precipitation = sliding_window_view(precipitation_time_series,
+                                                    window_shape=history_steps, 
+                                                    axis=0)[:-forecast_steps]
+            
+            self.input_timestamps = sliding_window_view(timestamps,
+                                                    window_shape=history_steps, 
+                                                    axis=0)[:-forecast_steps]
+            
+            if not production_mode:
+                self.output_precipitation = sliding_window_view(precipitation_time_series[history_steps:],
+                                                            window_shape=forecast_steps, 
+                                                            axis=0)
+                self.output_timestamps = sliding_window_view(timestamps[history_steps:],
+                                                            window_shape=forecast_steps, 
+                                                            axis=0)
+                
+            # reshape to DGMR expected input
+            self.input_precipitation = np.transpose(self.input_precipitation, (0, 3, 1, 2))
+            if self.normalize_data == True:
+                self.input_precipitation = (self.input_precipitation[:,:,None,:,:]-mean_imerg)/std_imerg
+                self.input_precipitation = np.nan_to_num(self.input_precipitation, 0.)
+            else:
+                self.input_precipitation = self.input_precipitation[:,:,None,:,:]
+            
+            if not production_mode:
+                self.output_precipitation = np.transpose(self.output_precipitation, (0, 3, 1, 2))
+                if self.normalize_data == True:
+                    self.output_precipitation = (self.output_precipitation[:,:,None,:,:]-mean_imerg)/std_imerg
+                    self.output_precipitation = np.nan_to_num(self.output_precipitation, 0.)
+                else:
+                    self.output_precipitation = self.output_precipitation[:,:,None,:,:]
+            
+            
+        
+        if self.user_IR:
+            ir_correction = 1
+            with h5py.File(self.ir_filename, 'r') as hf:
+                IR_time_series = hf['precipitations'][:].astype(np.float32)[1:-ir_correction]
+                datetime_series = hf['timestamps'][:][1:-ir_correction]
+                
+                # mean_ir = hf['mean'][()]
+                # std_ir = hf['std'][()]
+                
+                if self.img_height != IR_time_series.shape[1]:
+                    h_start = (IR_time_series.shape[1] - self.img_height) // 2
+                    IR_time_series = IR_time_series[:, h_start:h_start+self.img_height, :]
+                
+                if self.img_width != IR_time_series.shape[2]:
+                    w_start = (IR_time_series.shape[2] - self.img_width) // 2
+                    IR_time_series = IR_time_series[:, :, w_start:w_start+self.img_width]
+
+                # print("IR original shape", IR_time_series.shape)
+                history_steps_IR = history_steps*2
+                forecast_steps_IR = forecast_steps*2
+                
+                input_IR_sample = sliding_window_view(IR_time_series,
+                                                        window_shape=history_steps_IR, 
+                                                        axis=0)
+                
+                input_IR_timestamps_sample = sliding_window_view(datetime_series,
+                                                        window_shape=history_steps_IR, 
+                                                        axis=0)
+                
+                input_IR_sample = input_IR_sample[:-forecast_steps_IR][::2]
+                input_IR_timestamps_sample = input_IR_timestamps_sample[:-forecast_steps_IR][::2]
+                
+                output_IR_sample = sliding_window_view(IR_time_series[history_steps_IR:],
+                                                        window_shape=forecast_steps_IR, 
+                                                            axis=0)[::2]
+                output_IR_timestamps_sample = sliding_window_view(datetime_series[history_steps_IR:],
+                                                        window_shape=forecast_steps_IR, 
+                                                            axis=0)[::2]
+                
+                # move 9 images from output IR to input IR (since we have up to 1 15h of IR in the past)
+                # print(input_IR_sample.shape)
+                # print(output_IR_sample.shape)
+                
+                self.input_IR = np.concatenate((input_IR_sample, output_IR_sample[:,:,:,0:9]), axis=3)
+                self.input_IR_timestamps_sample = np.concatenate((input_IR_timestamps_sample, output_IR_timestamps_sample[:,0:9]), axis=1)
+                
+                self.output_IR = output_IR_sample[:,:,:,9:]
+                self.output_IR_timestamps_sample = output_IR_timestamps_sample[:,9:]
+            
+                # reshape to DGMR expected input
+                self.input_IR = np.transpose(self.input_IR, (0, 3, 1, 2))
+                if self.normalize_data == True:
+                    self.input_IR = (self.input_IR[:,-16:,None,:,:]-mean_ir)/std_ir
+                    self.input_IR = np.nan_to_num(self.input_IR, 0.)
+                else:
+                    self.input_IR = self.input_IR[:,-16:,None,:,:]
+                
+                self.output_IR = np.transpose(self.output_IR, (0, 3, 1, 2))
+                
+                # normalize data and add an extra channel to incorporate neural network expected input
+                if self.normalize_data == True:
+                    self.output_IR = (self.output_IR[:,:,None,:,:]-mean_ir)/std_ir
+                    self.output_IR = np.nan_to_num(self.output_IR, 0.)
+                else:
+                    self.output_IR = self.output_IR[:,:,None,:,:]
+                    
+               
+                if self.mode is not None:
+                    total_length = len(self.input_precipitation)
+                    
+                    if self.mode == 0:
+                        self.input_IR = self.input_IR[0: int(total_length*0.8)]
+                        self.output_IR = self.output_IR[0: int(total_length*0.8)]
+
+                        
+                    elif self.mode == 1:
+                        self.input_IR = self.input_IR[int(total_length*0.8): int(total_length*0.9)]
+                        self.output_IR = self.output_IR[int(total_length*0.8): int(total_length*0.9)]
+
+                    elif self.mode == 2:
+                        self.input_IR = self.input_IR[int(total_length*0.9):]
+                        self.output_IR = self.output_IR[int(total_length*0.9):]
+                    else:
+                        raise Exception('Invalide mode, must be in [0,1,2]')
+                print("IR Dataset input shape: ", self.input_IR.shape)
+                print("IR Dataset output shape: ", self.output_IR.shape)
+                
+                
+        if self.mode is not None:
+            total_length = len(self.input_precipitation)
+            
+            if self.mode == 0:
+                self.input_precipitation = self.input_precipitation[0: int(total_length*0.8)]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[0: int(total_length*0.8)]
+    
+            elif self.mode == 1:
+                self.input_precipitation = self.input_precipitation[int(total_length*0.8): int(total_length*0.9)]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[int(total_length*0.8): int(total_length*0.9)]
+
+            elif self.mode == 2:
+                self.input_precipitation = self.input_precipitation[int(total_length*0.9):]
+                if not production_mode:
+                    self.output_precipitation = self.output_precipitation[int(total_length*0.9):]
+            else:
+                raise Exception('Invalide mode, must be in [0,1,2]')
+            
+        print("Precipitation Dataset input shape: ", self.input_precipitation.shape)
+        if not production_mode:
+            print("Precipitation Dataset output shape: ", self.output_precipitation.shape)
+            
+            
+    # code obtained from https://stackoverflow.com/questions/19349410/how-to-pad-with-zeros-a-tensor-along-some-axis-python
+    def symmetric_pad_array(self, input_array: np.ndarray, target_shape: tuple, pad_value: int) -> np.ndarray:
+        for dim_in, dim_target in zip(input_array.shape, target_shape):
+            if dim_target < dim_in:
+                raise Exception("`target_shape` should be greater or equal than `input_array` shape for each axis.")
+
+        pad_width = []
+        for dim_in, dim_target  in zip(input_array.shape, target_shape):
+            if (dim_in-dim_target)%2 == 0:
+                pad_width.append((int(abs((dim_in-dim_target)/2)), int(abs((dim_in-dim_target)/2))))
+            else:
+                pad_width.append((int(abs((dim_in-dim_target)/2)), (int(abs((dim_in-dim_target)/2))+1)))
+        
+        return np.pad(input_array, pad_width, 'constant', constant_values=pad_value)
+    
+    def __getitem__(self, idx):
+        if self.production_mode:   
+            if self.user_IR:
+                return self.input_precipitation[idx], _ , self.input_IR[idx], _
+            else:
+                return self.input_precipitation[idx], _
+        else:
+            if self.user_IR:
+                return self.input_precipitation[idx], self.output_precipitation[idx] , self.input_IR[idx], self.output_IR[idx]
+            else:
+                return self.input_precipitation[idx], self.output_precipitation[idx]
     
     def __len__(self):
         return len(self.input_precipitation)
@@ -528,6 +834,35 @@ class IMERGDataModule(L.LightningDataModule):
                                     production_mode = production_mode)
             self.val_dataset = self.train_dataset
             self.test_dataset = self.train_dataset
+        elif dataset == 'wa_ir':
+            self.train_dataset = ImergWAIRDataset(imerg_filename, 
+                                    ir_filename, 
+                                    forecast_steps, 
+                                    history_steps,
+                                    normalize_data=normalize_data,
+                                    image_shape=image_shape,
+                                    production_mode = production_mode,
+                                    mode = 0
+                                    )
+            self.val_dataset = ImergWAIRDataset(imerg_filename, 
+                                    ir_filename, 
+                                    forecast_steps, 
+                                    history_steps,
+                                    normalize_data=normalize_data,
+                                    image_shape=image_shape,
+                                    production_mode = production_mode,
+                                    mode = 1
+                                    )
+            self.test_dataset = ImergWAIRDataset(imerg_filename, 
+                                    ir_filename, 
+                                    forecast_steps, 
+                                    history_steps,
+                                    normalize_data=normalize_data,
+                                    image_shape=image_shape,
+                                    production_mode = production_mode,
+                                    mode = 2
+                                    )
+            
             
     def train_dataloader(self):
         dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=2)
