@@ -8,7 +8,7 @@ import numpy as np
 from servir.utils.config_utils import load_config
 import functools
 import torch
-from servir.utils.data_provider import ImergDataset, IMERGDataModule
+from servir.utils.data_provider import IMERGDataModule
 from servir.methods.dgmr.dgmr import DGMR
 from servir.methods.dgmr_ir.dgmr_ir import DGMR_IR
 import os

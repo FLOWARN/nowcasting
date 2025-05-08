@@ -759,6 +759,7 @@ class ImergWAIRDataset(Dataset):
                 return self.input_precipitation[idx], self.output_precipitation[idx]
 
     def __len__(self):
+        
         return len(self.input_precipitation)
 
     def get_input_timestamps(self):
@@ -800,9 +801,6 @@ class IMERGDataModule(L.LightningDataModule):
             dataset=None,
             production_mode=False
     ):
-        """
-        fake_data: random data is created and used instead. This is useful for testing
-        """
         super().__init__()
 
         self.num_workers = num_workers
