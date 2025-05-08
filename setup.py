@@ -13,4 +13,4 @@ setup(name='servir',
       package_dir={'servir': '/',
                    'servir_data_utils': '/',
                    'servir_nowcasting_examples':'/'},
-      python_requires='>=3.12')
+      python_requires='>=3.8')

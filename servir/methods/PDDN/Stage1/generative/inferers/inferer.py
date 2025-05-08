@@ -377,12 +377,15 @@ class LatentDiffusionInferer(DiffusionInferer):
             mode: Conditioning mode for the network.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
         """
-        with torch.no_grad():
-            latent = autoencoder_model_radar.encode(inputs) * self.scale_factor
-            condition_radar = autoencoder_model_radar.encode(condition[:, :1]) * self.scale_factor
-            condition_wrf = autoencoder_model_wrf.encode(condition[:, 1:]) * self.scale_factor
-            
-        condition = torch.cat((condition_radar, condition_wrf), 1)
+        # with torch.no_grad():
+        #     # latent = autoencoder_model_radar.encode(inputs) * self.scale_factor
+        #     # condition_radar = autoencoder_model_radar.encode(condition[:, :1]) * self.scale_factor
+        #     # condition_wrf = autoencoder_model_wrf.encode(condition[:, 1:]) * self.scale_factor
+        #
+        #     condition_imerg = autoencoder_model_radar.encode(condition[:, :1]) * self.scale_factor
+        #     condition_ir = autoencoder_model_wrf.encode(condition[:, 1:]) * self.scale_factor
+
+        # condition = torch.cat((condition_imerg, condition_ir), 1)
 
         if self.ldm_latent_shape is not None:
             latent = torch.stack([self.ldm_resizer(i) for i in decollate_batch(latent)], 0)
@@ -392,7 +395,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             call = partial(super().__call__, seg=seg)
 
         prediction = call(
-            inputs=latent,
+            inputs=inputs,
             diffusion_model=diffusion_model,
             noise=noise,
             timesteps=timesteps,

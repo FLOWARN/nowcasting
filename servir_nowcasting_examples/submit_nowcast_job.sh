@@ -19,4 +19,4 @@ conda activate pysteps
 
 nvidia-smi
 # This script contains predictions of the USA events shown in the paper. The output folders '0' to '9' correspond to Fig. 2 in the main text, Extended Data Fig. 2-6 and Supplementary Fig.2-5 in order.
-python3 test_IR_dataloader.py
+python3 PDDN.py
