@@ -116,7 +116,6 @@ def processIRData():
         Tb_new = Tb_R[ind1[0]:ind1[-1]+1, ind2[0]:ind2[-1]+1, cr]
         Tb_g[:, :, cr] = Tb_new
 
-
     input()
 
 def downloadIRData(start_date, end_date):

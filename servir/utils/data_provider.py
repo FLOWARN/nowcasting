@@ -296,7 +296,9 @@ class ImergGhanaMonthlyDataset(Dataset):
         print("IR Dataset output shape: ", self.output_IR.shape)
 
     # code obtained from https://stackoverflow.com/questions/19349410/how-to-pad-with-zeros-a-tensor-along-some-axis-python
+
     def symmetric_pad_array(self, input_array: np.ndarray, target_shape: tuple, pad_value: int) -> np.ndarray:
+        
         for dim_in, dim_target in zip(input_array.shape, target_shape):
             if dim_target < dim_in:
                 raise Exception("`target_shape` should be greater or equal than `input_array` shape for each axis.")
@@ -759,7 +761,7 @@ class ImergWAIRDataset(Dataset):
                 return self.input_precipitation[idx], self.output_precipitation[idx]
 
     def __len__(self):
-        
+
         return len(self.input_precipitation)
 
     def get_input_timestamps(self):

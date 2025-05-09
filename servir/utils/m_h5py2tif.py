@@ -23,6 +23,7 @@ import osgeo.gdal as gdal
 
 def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, dataset = 'IMERG'):
     def get_EF5_geotiff_metadata(meta_fname):
+        # Reads in the metadata file and extracts the georeference information
         with open(meta_fname, "r") as outfile:
             meta = json.load(outfile)
             
@@ -34,7 +35,7 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, datas
             return nx, ny, gt, proj
 
     def WriteGrid(gridOutName, dataOut, nx, ny, gt, proj):
-        #Writes out a GeoTIFF based on georeference information in RefInfo
+        # Writes out a GeoTIFF based on georeference information in RefInfo
         driver = gdal.GetDriverByName('GTiff')
         dst_ds = driver.Create(gridOutName, nx, ny, 1, gdal.GDT_Float32, ['COMPRESS=DEFLATE'])
         dst_ds.SetGeoTransform(gt)
@@ -60,9 +61,9 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, datas
                 output_dts = hf[str(index) + 'timestamps'][:]
             output_dts = np.array([datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S') for x in output_dts])
 
-            if method == 'convlstm':
-                pred_imgs = np.insert(pred_imgs, 0, 0, axis=2)
-                pred_imgs = np.insert(pred_imgs, -1, 0, axis=2)
+            # if method == 'convlstm':
+            #     pred_imgs = np.insert(pred_imgs, 0, 0, axis=2)
+            #     pred_imgs = np.insert(pred_imgs, -1, 0, axis=2)
 
             
             if dataset == 'IMERG':
@@ -76,18 +77,7 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, datas
                 if num_predictions == 1:
                     gridOutName = os.path.join(tif_directory + method, f"{filename_qualifier}{dt_str}{filename_end}.tif")
                 else:
-                    os.makedirs(tif_directory + method + str(index)+'/', exist_ok=True)
-                    gridOutName = os.path.join(tif_directory + method+ str(index)+'/', f"{filename_qualifier}{dt_str}{filename_end}.tif")
+                    os.makedirs(tif_directory + method +'/'+ str(index)+'/', exist_ok=True)
+                    gridOutName = os.path.join(tif_directory + method +'/'+ str(index)+'/', f"{filename_qualifier}{dt_str}{filename_end}.tif")
                 WriteGrid(gridOutName, pred_imgs[i], nx, ny, gt, proj)
                 
-
-
-if __name__ == "__main__":
-    # h5_fname =  sys.argv[1] 
-    # meta_fname = sys.argv[2]
-    # tif_directory = sys.argv[3]
-    
-    
-    h5py2tif(h5_fname='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/servir_nowcasting_examples/temp/output_imerg.h5', 
-             meta_fname='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/servir_nowcasting_examples/temp/imerg_geotiff_meta.json', 
-             tif_directory='/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/precip')
