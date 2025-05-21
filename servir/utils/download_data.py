@@ -26,97 +26,138 @@ import numpy as np
 import datetime
 import netCDF4 as nc
 
-def processIRData():
-    
-    subdir_t= '/vol_efthymios/NFS07/en279/SERVIR/TITO_test3/ML/nowcasting/data/IR/'
+def resample_Tb(old_lat, old_lon, old_data, lat_R, lon_R):
+    old_lon_grid, old_lat_grid = np.meshgrid(old_lon, old_lat, indexing='xy')
+    new_lon_grid, new_lat_grid = np.meshgrid(lon_R, lat_R, indexing='xy')
 
-    dir_t = [filename for filename in os.listdir(subdir_t ) if filename.startswith('HRSEVIRI_') and filename.endswith('.nc')]
-    filename_t = subdir_t + dir_t [0]
+    old_coordinates = np.column_stack((old_lon_grid.ravel(), old_lat_grid.ravel()))
+    new_coordinates = np.column_stack((new_lon_grid.ravel(), new_lat_grid.ravel()))
+
+    new_data = np.full((len(lat_R), len(lon_R)), np.nan)
+    new_data = griddata(old_coordinates, old_data[:, :].flatten(), new_coordinates, method='nearest').reshape(len(lat_R), len(lon_R))
+
+    return new_data
+
+
+
+def processIRData(subdir_t= '/Users/akshayaravamudan/Desktop/IR', h5_fname = '../../data/WA_IR.h5'):
+
+    start_date, end_date = get_WA_dataset(use_subset = True, with_IR = True)
+    
+    dir_t = []
+    import glob
+
+    index = 0
+    missing_files = []
+    while start_date < end_date:
+        date_str = start_date.strftime('%Y%m%dT%H%M')
+        # get all files that start with HRSEVIRI_ and end with .nc
+        files = glob.glob(subdir_t + '/HRSEVIRI_' + date_str + '*.nc')
+        if len(files) > 0:
+            filename = files[0]
+        else:
+            filename = files
+        
+        if filename == []:
+            missing_files.append(date_str)
+            dir_t.append(dir_t[-1])
+        else:
+            dir_t.append(filename)
+        
+        start_date = start_date + datetime.timedelta(minutes=15)
+
+        index +=1
+
+    
+    print("----- TOTAL FILES -----" + str(len(dir_t)))
+    print("----- TOTAL MISSING FILES (replaced with previous IR data) -----" + str(len(missing_files)))
+    
+    filename_t = dir_t [0]
     nc_data_t = nc.Dataset(filename_t,'r')
-    variable_t=nc_data_t.variables
-    dir_t.sort() 
+    variable_t = nc_data_t.variables
+    # dir_t.sort() 
     lat_t= nc_data_t.variables['lat'][:]
     lon_t= nc_data_t.variables['lon'][:]
     # ch9= nc_data_t.variables['channel_9']
     
     dates_t = []   
-    ch9= np.full((len(lat_t), len(lon_t), len(dir_t)), np.nan)
-    Tb= np.full((len(lat_t), len(lon_t), len(dir_t)), np.nan)
+    # ch9= np.full((len(lat_t), len(lon_t), len(dir_t)), np.nan)
+    # Tb= np.full((len(lat_t), len(lon_t), len(dir_t)), np.nan)
 
-
+    
     lambda_val = 10.8
     nu = 10000 / lambda_val
     c1 = 1.19104E-5
     c2 = 1.43877
-    print(Tb.shape)
-    input()
-
-    for i in range(len(dir_t)):
-        filename_t= subdir_t+dir_t[i]
-        nc_data_t = nc.Dataset(filename_t)
-        date_str = filename_t.split('HRSEVIRI_')[1][:13]  # Extract date string from file name
-        date_obj = datetime.datetime.strptime(date_str, '%Y%m%dT%H%M')
-        dates_t.append(date_obj)
-        
-        radiance = nc_data_t.variables['channel_9'][:]
-        radiance = np.where(radiance <= 0, np.nan, radiance)  
-
-        ch9[:, :, i] = radiance
-        Tb[:, :, i] = c2 * nu / np.log(1 + (c1 * nu**3 /ch9[:, :, i]))
-        
-
-
-    # Resample function
-
-    from scipy.interpolate import griddata
-
-
-    def resample_Tb(old_lat, old_lon, old_data, lat_R, lon_R):
-        old_lon_grid, old_lat_grid = np.meshgrid(old_lon, old_lat, indexing='xy')
-        new_lon_grid, new_lat_grid = np.meshgrid(lon_R, lat_R, indexing='xy')
-
-        old_coordinates = np.column_stack((old_lon_grid.ravel(), old_lat_grid.ravel()))
-        new_coordinates = np.column_stack((new_lon_grid.ravel(), new_lat_grid.ravel()))
-
-        new_data = np.full((len(lat_R), len(lon_R), old_data.shape[2]), np.nan)
-        
-        for t in range(old_data.shape[2]):
-            new_data[:, :, t] = griddata(old_coordinates, old_data[:, :, t].flatten(), new_coordinates, method='nearest').reshape(len(lat_R), len(lon_R))
-        
-        return new_data
-
-    xmin = -21.2
-    xmax = 30.4
-    ymin = -2.9
-    ymax = 33.1
-
-
     lat_R = np.arange(-2.9, 33.1 , 0.1) # lat_R can be derived from IMERG data
     lon_R = np.arange(-21.2, 30.4, 0.1) # lon_R  can be derived from IMERG data
-
-
-    Tb_R = resample_Tb(lat_t, lon_t, Tb, lat_R, lon_R)
-
-
-    # cropping variables over Ghana 
-    # gdf_Gh = gpd.read_file('C:\\Python\\Project Code\\Ghana shape\\GHA_adm\\GHA_adm0.shp')
-    # bounds = gdf_Gh.total_bounds  
+    
     bounds =  [-21.2, 30.4, -2.9, 33.1]
+    # bounds = [-21.3, 30.5, 33.2, -3]
 
-    ind1 = np.where((lat_R > (bounds[1] - 0.1)) & (lat_R < (bounds[3] + 0.1)))[0]  # I add 0.1 in each side you can remove it.
-    ind2 = np.where((lon_R > (bounds[0] - 0.1)) & (lon_R < (bounds[2] + 0.1)))[0]   # I add 0.1 in each side you can remove it.
-    lat_R_cr = lat_R[ind1]
-    lon_R_cr = lon_R[ind2]
+    
+    indices_with_issues = []
+    
+    percent_negatives = []
+    with h5py.File(h5_fname, 'w') as hf:
+        # hf.create_dataset('mean', data=0., compression="gzip", chunks=True, maxshape=(1,))
+        # hf.create_dataset('std', data=0., compression="gzip", chunks=True, maxshape=(1,))
+
+        for i in range(len(dir_t)):
+            
+            filename_t= dir_t[i]
+            nc_data_t = nc.Dataset(filename_t)
+            date_str = filename_t.split('HRSEVIRI_')[1][:13]  # Extract date string from file name
+            date_obj = datetime.datetime.strptime(date_str, '%Y%m%dT%H%M')
+            dates_t.append(date_obj)
+            
+            
+            radiance = nc_data_t.variables['channel_9'][:]
+            
+            # num_negatives = np.sum(np.sum(np.array(radiance) <= 0, axis=0))
+            # percent_negative = (num_negatives / (radiance.shape[0] * radiance.shape[1])) * 100
+            # percent_negatives.append(percent_negative)
+            radiance = np.where(radiance <= 0, np.nan, radiance)
+
+            # ch9[:, :, i] = radiance
+            # Tb[:, :, i] = c2 * nu / np.log(1 + (c1 * nu**3 /radiance))
+            
+            Tb_val = c2 * nu / np.log(1 + (c1 * nu**3 /radiance))
+            
+            Tb_R = resample_Tb(lat_t, lon_t, Tb_val, lat_R, lon_R)
+            print("Any nans in data: ", np.isnan(Tb_R).any())
+            if np.isnan(Tb_R).any() == True:
+                indices_with_issues.append(i)
+            
+            # ind1 = np.where((lat_R > (bounds[1] - 0.1)) & (lat_R < (bounds[3] + 0.1)))[0]  # I add 0.1 in each side you can remove it.
+            # ind2 = np.where((lon_R > (bounds[0] - 0.1)) & (lon_R < (bounds[2] + 0.1)))[0]   # I add 0.1 in each side you can remove it.
+            # lat_R_cr = lat_R[ind1]
+            # lon_R_cr = lon_R[ind2]
 
 
-    Tb_g = np.full((len(ind1), len(ind2), Tb_R.shape[2]), np.nan)
+            # Tb_g = np.full((len(ind1), len(ind2), Tb_R.shape[2]), np.nan)
 
+            # Tb_g = np.full_like(Tb_R, np.nan)
+            # Tb_g = Tb_R[ind1[0]:ind1[-1]+1, ind2[0]:ind2[-1]+1]
 
-    for cr in range(Tb_R.shape[2]):
-        Tb_new = Tb_R[ind1[0]:ind1[-1]+1, ind2[0]:ind2[-1]+1, cr]
-        Tb_g[:, :, cr] = Tb_new
+            # print(Tb_g.shape)
+            # print("Any nans in data: ", np.isnan(Tb_g).any())
+            # input()
+            if i == 0:
+                hf.create_dataset('precipitations', data=np.array([Tb_R]), compression="gzip", chunks=True, maxshape=(len(dir_t),Tb_R.shape[0], Tb_R.shape[1]))
+                hf.create_dataset('timestamps', data=[date_obj.strftime('%Y-%m-%d %H:%M:%S')], compression="gzip", chunks=True, maxshape=(len(dir_t),))
+            else:
+                hf['precipitations'].resize((hf['precipitations'].shape[0] + 1), axis=0)
+                hf['precipitations'][-1] = Tb_R
+                hf['timestamps'].resize((hf['timestamps'].shape[0] + 1), axis=0)
+                hf['timestamps'][-1] = date_obj.strftime('%Y-%m-%d %H:%M:%S')
+            
+            print(i, "out of ", len(dir_t))
+    
+    print("indices with issues: ", indices_with_issues)
+    
+    
 
-    input()
 
 def downloadIRData(start_date, end_date):
     # make sure that eumdac and datatailor are installed in the linux environment
