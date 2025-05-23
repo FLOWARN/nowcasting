@@ -8,20 +8,26 @@ import numpy as np
 import osgeo.gdal as gdal
 
 
-####
 
-# This file is for project pipline only! 
-# The function below is used to convert a h5py file to tiff images 
-# in a specified directory
-
-####
-
-# h5_fname = '/home/cc/projects/nowcasting/temp/output_imerg.h5'
-# meta_fname = '/home/cc/projects/nowcasting/temp/imerg_giotiff_meta.json'
-# tif_directory = '/home/cc/projects/nowcasting/temp/'
 
 
 def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, dataset = 'IMERG'):
+    """
+    Function to convert h5py files to geotiff files.
+    The function reads in the h5py file and extracts the precipitation data and timestamps.
+    It then writes out the precipitation data to a geotiff file using the metadata from the meta_fname file.
+    The geotiff file is saved in the tif_directory with the method name as a subdirectory.
+    The function also creates the tif_directory if it does not exist.
+
+
+    Args:
+        h5_fname (_type_): _description_
+        meta_fname (_type_): _description_
+        tif_directory (_type_): _description_
+        num_predictions (_type_): _description_
+        method (_type_): _description_
+        dataset (str, optional): _description_. Defaults to 'IMERG'.
+    """
     def get_EF5_geotiff_metadata(meta_fname):
         # Reads in the metadata file and extracts the georeference information
         with open(meta_fname, "r") as outfile:
@@ -35,7 +41,9 @@ def h5py2tif(h5_fname, meta_fname, tif_directory, num_predictions, method, datas
             return nx, ny, gt, proj
 
     def WriteGrid(gridOutName, dataOut, nx, ny, gt, proj):
-        # Writes out a GeoTIFF based on georeference information in RefInfo
+        """
+        Function to write out a GeoTIFF based on georeference information in RefInfo
+        """
         driver = gdal.GetDriverByName('GTiff')
         dst_ds = driver.Create(gridOutName, nx, ny, 1, gdal.GDT_Float32, ['COMPRESS=DEFLATE'])
         dst_ds.SetGeoTransform(gt)

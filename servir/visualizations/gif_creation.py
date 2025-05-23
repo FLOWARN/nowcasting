@@ -14,7 +14,8 @@ import matplotlib.gridspec as gridspec
 pysteps.visualization.animations copy for local edits
 ================================
 
-Functions to produce animations for pysteps.
+Functions to produce animations for pysteps. This has been slighlty modified from the original implementation
+
 
 .. autosummary::
     :toctree: ../generated/

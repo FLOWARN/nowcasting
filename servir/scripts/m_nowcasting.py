@@ -53,6 +53,14 @@ param_dict_of_dicts = {'naive':{'model_type': 'naive',
     
     
 def nowcast(param_dict):
+    """
+    Function to run nowcasting using the model picker class.
+    The function loads the data from the input h5 file, loads the model, and then makes predictions.
+    The predictions are then saved to the output h5 file.
+
+    Args:
+        param_dict (_type_): _description_
+    """
     model_type = param_dict['model_type']
     model_config_path = param_dict['config_path']
     model_save_path = param_dict['model_save_path']
@@ -73,11 +81,32 @@ def nowcast(param_dict):
 
 
 def load_default_params_for_model(model_name):
+    """
+    Function to load the default parameters for a given model.
+    The function loads the parameters from the param_dict_of_dicts dictionary.
+    The function returns the parameters for the given model name.
+    The function raises an assertion error if the model name is not in the dictionary.
+
+
+    Args:
+        model_name (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     assert model_name in list(param_dict_of_dicts.keys())
     return param_dict_of_dicts[model_name]
     
 
 def parse_parameters():
+    """
+    Function to parse the parameters for the nowcasting function.
+    The function uses argparse to parse the parameters.
+    The function returns a dictionary of the parameters.
+
+    Returns:
+        _type_: _description_
+    """
     import argparse
     
     

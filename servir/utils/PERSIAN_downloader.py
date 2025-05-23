@@ -15,6 +15,23 @@ from servir.utils.m_tif2h5py import tif2h5py
 
 
 def clipper(input_tiff_dir, final_output_dir, input_raw_data_dir,event_id = 'PDIR_data'):
+    """
+    Function to clip the GeoTIFF files to a specific bounding box and save them in a new directory.
+    The function also removes the original folders after processing.
+    The bounding box is defined by the coordinates:
+    crop_xmin = -21.4
+    crop_xmax = 30.4
+    crop_ymin = -2.9
+    crop_ymax = 33.1
+    The nodata value is set to -9999 and the compression method is set to 'DEFLATE'.
+    The function uses the rasterio library to read and write the GeoTIFF files.
+
+    Args:
+        input_tiff_dir (_type_): _description_
+        final_output_dir (_type_): _description_
+        input_raw_data_dir (_type_): _description_
+        event_id (str, optional): _description_. Defaults to 'PDIR_data'.
+    """
     crop_xmin = -21.4
     crop_xmax = 30.4
     crop_ymin = -2.9
@@ -82,6 +99,16 @@ def clipper(input_tiff_dir, final_output_dir, input_raw_data_dir,event_id = 'PDI
 
 
 def converter(input_dir, output_dir):
+    """
+    Function to convert binary files to GeoTIFF format.
+    The function reads binary files from the input directory, processes them, and writes the output as GeoTIFF files in the output directory.
+    The function uses the rasterio library to handle the GeoTIFF format.
+
+
+    Args:
+        input_dir (_type_): _description_
+        output_dir (_type_): _description_
+    """
     #Data Directory
     # input_dir = "pdirnow_data"  
     # output_dir = "pdir_tiff"    
@@ -143,7 +170,22 @@ def converter(input_dir, output_dir):
 
 
 def download_files(input_date_str, save_dir , input_tiff_dir, output_tiff_dir_name, event_id):
+    """
+    Function to download PERSIAN data files from a given URL.
+    The function constructs the URL based on the input date and downloads the files in a specified directory.
+    It also decompresses the downloaded files and renames them according to a specific format.
+    The function uses the requests library to handle HTTP requests and the gzip library to decompress the files.
+    The function also calls the converter and clipper functions to process the downloaded files.
+    The function uses the datetime library to handle date and time operations.
+    The function uses the subprocess library to run external scripts.
 
+    Args:
+        input_date_str (_type_): _description_
+        save_dir (_type_): _description_
+        input_tiff_dir (_type_): _description_
+        output_tiff_dir_name (_type_): _description_
+        event_id (_type_): _description_
+    """
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     # -------------------------

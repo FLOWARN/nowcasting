@@ -7,28 +7,29 @@ import h5py
 import json
 import numpy as np
 import osgeo.gdal as gdal
-from osgeo.gdalconst import GA_ReadOnly
-####
-
-# This file is for project pipline only! 
-# The function below is used to convert all tiff images in a folder to h5py 
-# file with filename 'imerg_{start_date}_{end_date}.h5'
-
-####
-"""Function to load IMERG tiff data from the associate event folder
-
-Args:
-    sys.argv[2] (str): string path to the location of the event data
-
-Returns:
-    precipitation (np.array): np.array of precipitations (not sorted by time)
-    times (np.array): np.array of date times that match 1:q with precipitation
-
-    Save precipitation and times in string format to h5py file
-"""
 
 
 def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2, last_only=None):
+
+    """Function to load IMERG tiff data from the associate event folder
+
+    Args:
+        sys.argv[2] (str): string path to the location of the event data
+
+    Returns:
+        precipitation (np.array): np.array of precipitations (not sorted by time)
+        times (np.array): np.array of date times that match 1:q with precipitation
+
+        Save precipitation and times in string format to h5py file
+        h5_fname (str): string path to the location of the h5py file
+        meta_fname (str): string path to the location of the metadata file
+        x1 (float): x coordinate of the top left corner of the image
+        y1 (float): y coordinate of the top left corner of the image
+        x2 (float): x coordinate of the bottom right corner of the image
+        y2 (float): y coordinate of the bottom right corner of the image
+        last_only (int): if not None, only the last n images are returned
+    """
+
     filename_extension = 'tif'
 
 
