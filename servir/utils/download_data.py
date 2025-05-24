@@ -6,7 +6,6 @@ from datetime import timedelta
 import datetime
 
 import subprocess
-from osgeo.gdalconst import GA_ReadOnly
 import matplotlib.pyplot as plt
 import time
 import pandas as pd

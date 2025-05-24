@@ -7,6 +7,7 @@ import h5py
 import json
 import numpy as np
 import osgeo.gdal as gdal
+from osgeo.gdalconst import GA_ReadOnly
 
 
 def tif2h5py(tif_directory, h5_fname,meta_fname, x1, y1, x2, y2, last_only=None):

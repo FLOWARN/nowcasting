@@ -10,9 +10,9 @@ from timm.utils.agc import adaptive_clip_grad
 from timm.utils import AverageMeter
 from contextlib import suppress
 
-# from servir.core.optimizor import get_optim_scheduler
-# from servir.utils.convLSTM_utils import reshape_patch, reshape_patch_back, schedule_sampling, reserve_schedule_sampling_exp
-# from servir.utils.distributed_utils import reduce_tensor
+from servir.core.optimizer import get_optim_scheduler
+from servir.utils.convLSTM_utils import reshape_patch, reshape_patch_back, schedule_sampling, reserve_schedule_sampling_exp
+from servir.utils.distributed_utils import reduce_tensor
 from servir.core.losses import CFSSSurrogateLoss, g_func_relu, g_func_log 
 
 
