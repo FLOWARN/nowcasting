@@ -46,8 +46,3 @@ class Recorder:
                     print_log(f'Validation loss higher than current lowest {self.val_loss_min}, best model not updated.\n')
 
         return update_model, self.stop
-
-
-        
-
-        

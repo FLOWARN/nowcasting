@@ -11,7 +11,26 @@ import matplotlib
 
 
 def generate_outputs(data_loader, model_type, model_config_location, model_save_location, use_gpu, produce_ensemble_outputs=False, event_name = None, model_output_location = 'results'):
-    
+    """
+    Generates the model outputs for the given data loader and model type.
+    The function loads the model, makes predictions on the data, and saves the outputs to a specified location.
+    The function also handles ensemble outputs if specified.
+    The function is designed to work with different model types, including 'steps', 'linda', 'dgmr', and 'dgmr_ir'.
+    The function also handles the case where the model type is not recognized and raises an exception.
+
+    Args:
+        data_loader (_type_): _description_
+        model_type (_type_): _description_
+        model_config_location (_type_): _description_
+        model_save_location (_type_): _description_
+        use_gpu (_type_): _description_
+        produce_ensemble_outputs (bool, optional): _description_. Defaults to False.
+        event_name (_type_, optional): _description_. Defaults to None.
+        model_output_location (str, optional): _description_. Defaults to 'results'.
+
+    Returns:
+        _type_: _description_
+    """
     predicted_outputs = []
     
     if produce_ensemble_outputs:
@@ -99,7 +118,29 @@ def generate_outputs(data_loader, model_type, model_config_location, model_save_
     
 
 def evaluation(data_loader, thr_list, model_type, model_config_location, model_save_location, use_gpu, use_ensemble=False, event_name = None, model_output_location='results/'):
+    """
+    Generates the model outputs for the given data loader and model type. 
+    The function loads the model, makes predictions on the data, and saves the outputs to a specified location.
+    The function also handles ensemble outputs if specified.
+    The function is designed to work with different model types, including 'steps', 'linda', 'dgmr', and 'dgmr_ir'.
+    The function also handles the case where the model type is not recognized and raises an exception.
+    The function computes the CRPS, PSD, and CSI scores for the model predictions and ground truth data.
+    The function saves the scores to a specified location for further analysis.
 
+    Args:
+        data_loader (_type_): _description_
+        thr_list (_type_): _description_
+        model_type (_type_): _description_
+        model_config_location (_type_): _description_
+        model_save_location (_type_): _description_
+        use_gpu (_type_): _description_
+        use_ensemble (bool, optional): _description_. Defaults to False.
+        event_name (_type_, optional): _description_. Defaults to None.
+        model_output_location (str, optional): _description_. Defaults to 'results/'.
+
+    Returns:
+        _type_: _description_
+    """
     crps_dict = {model_type:{},
                  'gt':{}
                 }
@@ -244,7 +285,19 @@ def evaluation(data_loader, thr_list, model_type, model_config_location, model_s
 
 
 def csi_boxplot(csi_val_dict, csi_model_names, thr):
+    """
+    Function to create a boxplot for the Critical Success Index (CSI) values.
+    The boxplot is created for each model and forecast horizon.
+    The function also adds vertical lines to separate the boxplots for different forecast horizons.
+    The x-axis is labeled with the forecast horizons and the y-axis is labeled with the CSI values.
+    The function also adds a title and a legend to the plot.
     
+
+    Args:
+        csi_val_dict (_type_): _description_
+        csi_model_names (_type_): _description_
+        thr (_type_): _description_
+    """
 
     fig, ax = plt.subplots(figsize=(20,10)) 
     
@@ -290,6 +343,20 @@ def csi_boxplot(csi_val_dict, csi_model_names, thr):
 
 
 def rapsd_boxplot(rapsd_val_dict, rapsd_model_names, s=8):
+    """
+    Function to create a boxplot for the Radially Averaged Power Spectral Density (RAPSD) values.
+    The boxplot is created for each model and forecast horizon.
+    The function also adds vertical lines to separate the boxplots for different forecast horizons.
+    The x-axis is labeled with the forecast horizons and the y-axis is labeled with the RAPSD values.
+    The function also adds a title and a legend to the plot.
+    The function also sets the x-axis to a logarithmic scale and inverts the x-axis.
+    The function also sets the x-axis ticks and labels.
+
+    Args:
+        rapsd_val_dict (_type_): _description_
+        rapsd_model_names (_type_): _description_
+        s (int, optional): _description_. Defaults to 8.
+    """
     
     def plot_psd(psd_tuple):
         psd , freq = psd_tuple

@@ -8,12 +8,22 @@ import numpy as np
 from servir.utils.config_utils import load_config
 import functools
 import torch
-from servir.utils.data_provider import ImergDataset, IMERGDataModule
+from servir.utils.data_provider import IMERGDataModule
 from servir.methods.dgmr.dgmr import DGMR
 from servir.methods.dgmr_ir.dgmr_ir import DGMR_IR
 import os
 
 class ModelPicker:
+    """
+    Class to load the model based on the model type and configuration file.
+    The class also loads the data and makes predictions based on the loaded model.
+    The class also saves the output to a h5py file.
+    Args:
+        model_type (str): type of the model to be loaded. Options are 'naive', 'steps', 'linda', 'convlstm', 'dgmr', 'dgmr_ir'.
+        model_config_location (str): location of the model configuration file.
+        model_save_location (str): location of the saved model file.
+        use_gpu (bool): whether to use GPU for prediction. Defaults to False.
+    """
     def __init__(self, model_type, model_config_location, model_save_location=None, use_gpu=False) -> None:
         self.model_type = model_type
         self.model_config_location = model_config_location
@@ -23,6 +33,12 @@ class ModelPicker:
             
 
     def load_model(self, get_ensemble=True):
+        """
+        Function to load the model based on the model type and configuration file.
+
+        Args:
+            get_ensemble (bool, optional): _description_. Defaults to True.
+        """
         self.config = load_config(self.model_config_location)
         
         if not get_ensemble:
@@ -72,6 +88,15 @@ class ModelPicker:
             self.prediction_function = lambda y, y_ir: model.predict_ensemble(y, y_ir, n_ens_members = n_ens_members)
             
     def load_data(self, input_h5_filename):
+        """
+        Function to load the data from the h5py file. The function loads the precipitation data and the timestamps.
+        The precipitation data is loaded as a numpy array and the timestamps are loaded as a list of datetime objects.
+        The function also converts the timestamps to string format.
+
+
+        Args:
+            input_h5_filename (_type_): _description_
+        """
         self.input_h5_filename = input_h5_filename
         # Load the input precipitations
         with h5py.File(input_h5_filename, 'r') as hf:
@@ -83,7 +108,18 @@ class ModelPicker:
         self.input_dt = input_dt
 
     def predict(self, samples = None, samples_ir = None):
+        """
+        Function to make predictions based on the loaded model and data. The function takes the input precipitation data and
+        the timestamps as input. The function also takes the input IR data as input. The function returns the predicted precipitation data.
         
+
+        Args:
+            samples (_type_, optional): _description_. Defaults to None.
+            samples_ir (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         if samples is not None:
             self.input_precip = samples
         
@@ -177,17 +213,22 @@ class ModelPicker:
             pred_out_images = [x.detach().numpy() for x in  pred_out_images]
             
             return pred_out_images
-    
-    def train(self, model_name, model, train_dataset, test_dataset, validation_dataset):
-        
-        if model_name in ['lagrangian', 'naive', 'steps', 'linda']:
-            raise Exception("Model has no training involved")
-        elif model_name in ['convlstm']:
-            
-            
-            print("training convlstm")
-    
+
     def save_output(self, output_h5_filename, output_precipitation, num_predictions, dataset = 'IMERG'):
+        """
+        Function to save the output to a h5py file. The function takes the output precipitation data and the timestamps as input.
+        The function also takes the output h5py filename as input. The function returns the predicted precipitation data.
+        The function also deletes any existing file with the same name.
+
+        Args:
+            output_h5_filename (_type_): _description_
+            output_precipitation (_type_): _description_
+            num_predictions (_type_): _description_
+            dataset (str, optional): _description_. Defaults to 'IMERG'.
+
+        Raises:
+            Exception: _description_
+        """
         if dataset == 'IMERG':
             output_dt = [self.input_dt[-1] + datetime.timedelta(minutes=30*(k+1)) for k in range(self.config['out_seq_length'])]
         elif dataset == 'PDIR':
