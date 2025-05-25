@@ -1729,7 +1729,7 @@ class DiffusionModelUNet(nn.Module):
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
         num_channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
-        norm_num_groups: int = 32,
+        norm_num_groups: int = 8,
         norm_eps: float = 1e-6,
         resblock_updown: bool = False,
         num_head_channels: int | Sequence[int] = 8,

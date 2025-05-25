@@ -39,40 +39,9 @@ os.makedirs(model_save_path, exist_ok=True)
 val_fig_save_path = root_data_dir + feature
 os.makedirs(val_fig_save_path, exist_ok=True)
 
-batch_size = 4
+batch_size = 1
 channel = 0  # 0 = Flair
 assert channel in [0, 1, 2, 3], "Choose a valid channel"
-
-# def load_data():
-#     # train radar data
-#     radar_data_train = np.load('')
-    
-#     # val radar data
-#     radar_data_val = np.load('')
-    
-#     # test radar data
-#     radar_data_test = np.load('')
-    
-#     # train wrf data
-#     wrf_data_train = np.load('')
-    
-    
-#     radar_data_train = np.concatenate([radar_data_train, wrf_data_train], axis = 1)
-
-#     # val wrf data
-#     wrf_data_val = np.load('')
-
-    
-#     radar_data_val = np.concatenate([radar_data_val, wrf_data_val], axis = 1)
-
-#     # test wrf data
-#     wrf_data_test = np.load('')
-    
-    
-#     radar_data_test = np.concatenate([radar_data_test, wrf_data_test], axis = 1)
-
-#     return radar_data_train, radar_data_val, radar_data_test
-
 
 def load_data():
     # event id for which the data was downloaded
@@ -94,7 +63,7 @@ def load_data():
             history_steps = 12,
             imerg_filename = h5_dataset_location,
             ir_filename = ir_h5_dataset_location,
-            batch_size = 32,
+            batch_size = batch_size,
             image_shape = (360, 516),
             normalize_data=False,
             dataset = dataset_type)
@@ -124,7 +93,7 @@ def load_latent_data(rank):
         history_steps=12,
         imerg_filename=h5_dataset_location,
         ir_filename=ir_h5_dataset_location,
-        batch_size=32,
+        batch_size=batch_size,
         image_shape=(360, 516),
         normalize_data=False,
         dataset=dataset_type)
@@ -199,21 +168,24 @@ def train_ddp(rank, world_size, use_gpu = False):
 
     unet = DiffusionModelUNet(
         with_conditioning=True,
-        cross_attention_dim=64,
+        cross_attention_dim=4,
         spatial_dims=3,
         in_channels=32,
         out_channels=32,
         num_res_blocks=2,
-        num_channels=(128, 256, 256, 256),
+        # num_channels=(128, 256, 256, 256),
+        num_channels=(8, 16, 16, 16),
         attention_levels=(True, True, True, True),
-        num_head_channels=(8, 8, 8, 8),
+        # num_head_channels=(8, 8, 8, 8),
+        num_head_channels=(2, 2, 2, 2),
+        
     )
 
     unet.to(device)
 
     unet = torch.nn.parallel.DistributedDataParallel(unet, device_ids=[rank], find_unused_parameters=True)
 
-    scheduler = DDPMScheduler(num_train_timesteps=1000, schedule="scaled_linear_beta", beta_start=0.0001, beta_end=0.02)
+    scheduler = DDPMScheduler(num_train_timesteps=4, schedule="scaled_linear_beta", beta_start=0.0001, beta_end=0.02)
 
     # with torch.no_grad():
     #     with autocast(enabled=True):
@@ -294,8 +266,12 @@ def train_ddp(rank, world_size, use_gpu = False):
             with autocast(enabled=True):
                 noise = torch.randn_like(first_batch_output).to(device)
 
+                # timesteps = torch.randint(
+                #     0, inferer.scheduler.num_train_timesteps, (batch_output.shape[0],), device=batch_output.device
+                # ).long()
+
                 timesteps = torch.randint(
-                    0, inferer.scheduler.num_train_timesteps, (batch_output.shape[0],), device=batch_output.device
+                    4, 5, (batch_output.shape[0],), device=batch_output.device
                 ).long()
 
                 noise_pred = inferer(
@@ -329,4 +305,4 @@ if __name__ == "__main__":
     print("World size (GPU)", world_size)
     train_ddp(0, world_size, use_gpu = True)
 
-    # mp.spawn(train_ddp, args=(world_size,), nprocs=1, join=True)
+    # mp.spawn(train_ddp, args=(world_size,), nprocs=2, join=True)

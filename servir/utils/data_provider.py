@@ -9,10 +9,11 @@ from torch.utils.data.dataloader import DataLoader
 import torch
 
 class IMERGDataModuleLatentDim(Dataset):
+
     def __init__(self, imerg_filename, ir_filename, forecast_steps, history_steps, normalize_data=False,
-                 batch_size = 32,
-                 image_shape=(64, 64),
-                 production_mode=False, mode=None):
+                batch_size = 32,
+                image_shape=(64, 64),
+                production_mode=False, mode=None):
         super(IMERGDataModuleLatentDim, self).__init__()
         self.imerg_filename = imerg_filename
         self.ir_filename = ir_filename
@@ -59,7 +60,7 @@ class IMERGDataModuleLatentDim(Dataset):
 
 class ImergGhanaDataset(Dataset):
     def __init__(self, precipitation_time_series, mean_imerg, std_imerg, ir_filename, forecast_steps, history_steps,
-                 normalize_data=False, image_shape=(64, 64)):
+                normalize_data=False, image_shape=(64, 64)):
         super(ImergGhanaDataset, self).__init__()
         self.precipitation_time_series = precipitation_time_series
         self.mean_imerg = mean_imerg
