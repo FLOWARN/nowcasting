@@ -1,0 +1,124 @@
+# Large data files
+*.h5
+*.hdf5
+*.nc
+*.netcdf
+*.zarr
+
+# Model checkpoints and weights
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.pickle
+*.joblib
+*.model
+*.weights
+*.safetensors
+
+# Large datasets and data directories
+data/
+datasets/
+raw_data/
+processed_data/
+cache/
+temp_data/
+*.npy
+*.npz
+
+# Training outputs and logs
+checkpoints/
+checkpoints_*/
+experiments/
+experiments_*/
+logs/
+*.log
+runs/
+tensorboard_logs/
+wandb/
+mlruns/
+
+# Generated images and videos
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.avi
+*.mov
+*.tiff
+*.tif
+
+# Temporary and cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# Large output files
+output/
+outputs/
+results/
+*.csv
+*.json
+*.xml
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# SLURM job files
+*.out
+*.err
+slurm-*.out
+
+# Conda/pip
+.conda/
+pip-log.txt
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

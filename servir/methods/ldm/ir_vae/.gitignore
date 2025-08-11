@@ -1,0 +1,25 @@
+
+# Machine Learning specific
+# Ignore model files
+*.h5
+*.hdf5
+*.ckpt
+*.pth
+*.pt
+*.onnx
+*.joblib
+*.pkl
+
+# Ignore training logs
+logs/
+*.log
+*.out
+*.txt
+.nfs000000000a57386500021f4b
+# Ignore datasets
+datasets/
+
+
+# TensorBoard logs
+logs/
+outputs/

@@ -1,0 +1,27 @@
+experiment:
+  name: "vae_3d_experiment"
+  output_dir: "./outputs"
+
+
+data:
+  input_shape: [1, 16, 360, 516]
+
+  batch_size: 8
+  num_workers: 90
+  pin_memory: true
+  persistent_workers: true
+
+model:
+  latent_dim: 32
+  checkpoint_path: "./checkpoints/vae_3d.pth"
+
+training:
+  epochs: 100
+  learning_rate: 0.0001
+  beta: 1.5
+  device: "cuda"
+  use_amp: false
+  grad_clip: 1.0
+  checkpoint_interval: 1
+
+val_loader:
