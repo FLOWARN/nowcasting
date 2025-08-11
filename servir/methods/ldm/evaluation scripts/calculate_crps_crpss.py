@@ -5,8 +5,8 @@ CRPS/CRPSS Calculation Script for Latent Difference Precipitation Nowcasting
 This script calculates Continuous Ranked Probability Score (CRPS) and CRPS Skill Score (CRPSS) 
 for LDM trained on difference between IMERG ground truth and Lagrangian prediction error in latent space.
 
-The LDM is trained to predict: (IMERG_GT - Lagrangian_Prediction_Error) in latent space
-Final prediction = Lagrangian_Baseline + LDM_Prediction
+The LDM is trained to predict: (IMERG_GT - Lagrangian_Prediction) in latent space
+Final prediction = Lagrangian_Prediction + LDM_Prediction
 
 Uses CRPS fine-tuned generative VAE decoder for non-deterministic reconstruction
 with ensemble_size=9 for all methods for proper uncertainty quantification.
@@ -201,8 +201,8 @@ def get_test_data(vae_checkpoint_path, device, num_samples, seed):
     """Get test data using LangragianLDMDataset"""
     print(f"Setting up test data with {num_samples} random samples (seed={seed})")
     
-    imerg_file = './ldm_data_loader/imerg_data.h5'
-    ir_file = './ldm_data_loader/filled_missing_nan_ir_data.h5'
+    imerg_file = './data/imerg_data.h5'
+    ir_file = './data/ir_data.h5'
     
     # Create dataloader using LangragianLDMDataset
     full_loader = get_langragian_ldm_dataloader(
@@ -377,59 +377,7 @@ def run_baseline_ensemble_methods(sample_data, ensemble_size=9, timesteps=12):
     else:
         print("    Skipping PySTEPS and LINDA (PySTEPS not available)")
     
-    # Lagrangian ensemble (repeat pre-computed result with small noise for ensemble)
-    try:
-        print("    Creating Lagrangian ensemble...")
-        lagrangian_target = sample_data['langragian_target']  # LP[25:36]
-        if torch.is_tensor(lagrangian_target):
-            lagrangian_base = lagrangian_target.cpu().numpy()
-        else:
-            lagrangian_base = lagrangian_target
-        
-        # Create ensemble by adding small noise to the deterministic result
-        lagrangian_ensemble = []
-        for i in range(ensemble_size):
-            if i == 0:
-                # First member is the original
-                member = lagrangian_base.copy()
-            else:
-                # Add small amount of noise for ensemble diversity
-                noise_scale = 0.05 * i  # Increasing noise for diversity
-                noise = np.random.normal(0, noise_scale, lagrangian_base.shape)
-                member = lagrangian_base + noise
-                # Ensure non-negative precipitation
-                member = np.maximum(member, 0.0)
-            lagrangian_ensemble.append(member)
-        
-        baseline_predictions['lagrangian'] = lagrangian_ensemble
-        print(f"    Lagrangian ensemble completed. {len(lagrangian_ensemble)} members")
-    except Exception as e:
-        print(f"    Lagrangian ensemble failed: {e}")
-    
-    try:
-        # Naive persistence ensemble
-        print("    Running Naive persistence ensemble...")
-        naive_ensemble = []
-        for i in range(ensemble_size):
-            # Use last frame as persistence
-            last_frame = gt_context_np[-1]  # (H, W)
-            if i == 0:
-                # First member is pure persistence
-                naive_result = np.stack([last_frame] * timesteps, axis=0)  # (T, H, W)
-            else:
-                # Add noise for ensemble diversity
-                noise_scale = 0.1 * i
-                noise = np.random.normal(0, noise_scale, (timesteps, last_frame.shape[0], last_frame.shape[1]))
-                naive_result = np.stack([last_frame] * timesteps, axis=0) + noise
-                # Ensure non-negative precipitation
-                naive_result = np.maximum(naive_result, 0.0)
-            
-            naive_ensemble.append(naive_result)
-        
-        baseline_predictions['naive'] = naive_ensemble
-        print(f"    Naive ensemble completed. {len(naive_ensemble)} members")
-    except Exception as e:
-        print(f"    Naive ensemble failed: {e}")
+   
     
     return baseline_predictions
 

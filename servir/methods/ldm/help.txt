@@ -1,0 +1,4 @@
+All the models and data can be found on this two drive link you can download the IMERG and IR data (2009-01-01 to 2011-01-01) in it from there.
+Also the trained IR and RESIDUAL VAE model are available there.
+Link 1:https://drive.google.com/drive/folders/1k8wws5Hs-rSDwhXeEDxTGPjTZt7ey0_7?usp=sharing
+Link 2:https://drive.google.com/drive/folders/1iUfOmz2wZDX1XQet6Yt-q3KqDa5YohAD?usp=sharing
