@@ -37,6 +37,9 @@ cd servir_nowcasting_examples/
 8.	Create `temp` in `servir_nowcasting_examples/` and `data` in the `nowcasting` folder as it is present in the google drive: https://drive.google.com/drive/folders/1dWK8wDNKB3XwRuW6mNX22KHI1hyPH6uQ?usp=sharing 
 
 9.	Create an empty directory called `results` in `servir_nowcasting_folder`.
+10. The data and models for the ldm can be found on : 
+    Link 1: https://drive.google.com/drive/folders/1k8wws5Hs-rSDwhXeEDxTGPjTZt7ey0_7?usp=drive_link 
+    Link 2: https://drive.google.com/drive/folders/1iUfOmz2wZDX1XQet6Yt-q3KqDa5YohAD?usp=drive_link 
 
 
 After following these steps, the user should be in a position to run all the notebooks present in `servir_nowcasting_examples`
