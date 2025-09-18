@@ -1901,20 +1901,25 @@ class DiffusionModelUNet(nn.Module):
             self.up_blocks.append(up_block)
 
         # out
+        # self.out = nn.Sequential(
+        #     nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels[0], eps=norm_eps, affine=True),
+        #     nn.SiLU(),
+        #     zero_module(
+        #         Convolution(
+        #             spatial_dims=spatial_dims,
+        #             in_channels=num_channels[0],
+        #             out_channels=out_channels,
+        #             strides=1,
+        #             kernel_size=3,
+        #             padding=1,
+        #             conv_only=True,
+        #         )
+        #     ),
+        # )
         self.out = nn.Sequential(
             nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels[0], eps=norm_eps, affine=True),
             nn.SiLU(),
-            zero_module(
-                Convolution(
-                    spatial_dims=spatial_dims,
-                    in_channels=num_channels[0],
-                    out_channels=out_channels,
-                    strides=1,
-                    kernel_size=3,
-                    padding=1,
-                    conv_only=True,
-                )
-            ),
+            zero_module(nn.Linear(num_channels[0], out_channels)),
         )
 
     def forward(
